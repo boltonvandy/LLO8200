@@ -1,0 +1,239 @@
+---
+title: "Classification"
+author: "Will Doyle"
+---
+
+Classification is the process of predicting group membership. Understanding which individuals are likely to be members of which groups is a key task for data scientists. For instance, most recommendation engines that are at the hear of consumer web sites are based on classification algorithms, predicting which consumers are likely to purchase which products. 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Pizza
+
+Today we'll be working with the pizza dataset, which comes from the subreddit random acts of pizza. Each line represents a post to this subreddit. We have various characteristics of these posts, along with the request text from the post itself. We'll use these characteristics of the posts to predict whether or not the poster received pizza. This lesson is inspired by [this article](http://www.aaai.org/ocs/index.php/ICWSM/ICWSM14/paper/download/8106/8101)
+
+```{r libraries}
+library(tidyverse)
+library(knitr)
+library(modelr)
+library(caret)
+library(forcats)
+```
+
+```{r data}
+load("za_train.Rdata")
+```
+
+ Our goal is to create a classifier that will accurately classify people in a testing dataset as to whether they will receive a pizza or not, based on the content of their post. This is a VERY common task in data science-- taking user supplied content and using it to accurately classify that user, typically as someone who will buy a product or service.   
+ 
+ ## Dependent Variable
+ 
+ Our dependent variable is a binary variable, `got_pizza` that denotes whether the user indicated that someone had sent them a pizza after posting in the subreddit "random acts of pizza". Let's take a look at this and see how many people posted that they got a pizza.
+ 
+```{r}
+table(za_train$got_pizza)
+```
+
+This tells us the raw numbers. Lots of times we want to know the proportions. The function `prop.table` can do this for us. 
+
+```{r}
+prop.table(table(za_train$got_pizza))
+```
+ 
+So, `r  prop.table(table(za_train$got_pizza))[2]` of posts indicate that they were sent a pizza as a result of their post. We're interested in taking information in the posts themselves to see what makes it more or less likely that they would indicate that they received a pizza. 
+ 
+
+## Conditional Means as a Classifier
+
+We'll start by generating some cross tabs and some quick plots, showing the probability of receiving pizza according to several characteristics of the post.  We start with a basic crosstab of the dependent variable. We use `prop.table` to change this from raw counts to proportions. I also provide a brief exampl of how to do a table using the `kable` function. 
+
+```{r descriptives}
+#Cross Tabs
+
+za_train%>%
+  count(got_pizza)%>% # Count numbers getting pizza
+  mutate(p=prop.table(n))%>% #mutate for proportions using prop.table
+  kable(format="markdown") # output to table
+
+```
+
+So, about 75% of the sample didn't get pizza, about 25% did. 
+
+Next, we cross-tabulate receiving pizza with certain terms. First, if the request mentioned the word "student."
+
+```{r}
+prop.table(table(za_train$student,za_train$got_pizza),margin=1)
+```
+
+Next, if the request mentioned the word "grateful."
+
+```{r}
+g_table<-table(za_train$grateful,za_train$got_pizza);g_table
+
+prop.table(g_table,margin=1)
+```
+
+Crosstabs using binary data are equivalent to generating conditional means, as shown below. 
+
+```{r condtional_means}
+#Predictions using conditional means
+
+za_train%>%group_by(grateful)%>%summarize(mean(got_pizza))
+
+```
+
+Note how the mean of got pizza is equivalent to the proportion answering "1" in the previous table. 
+
+But, we can also use conditional means to get proportions for very particular sets of characteristics. In this case, what about individuals who included some combination of the terms "grateful","student" and "poor" in their posts? 
+
+```{r}
+za_sum<-za_train%>%
+  group_by(grateful,student,poor)%>%
+  summarize(mean_pizza=mean(got_pizza))%>%
+  arrange(-mean_pizza)
+
+za_sum%>%kable()
+
+```
+
+The initial evidence here makes it look like the posts that included the terms "Grateful" and "student" had the highest probability of receiving a pizza (or at least posting that they received a pizza!).
+
+## Probability of Receiving Pizza, Using Various Terms in Post
+```{r}
+gg<-ggplot(za_sum,aes(x=grateful,y=mean_pizza,fill=grateful))
+gg<-gg+geom_bar(stat="identity")
+gg<-gg+facet_wrap(~student+poor)
+gg
+```
+
+## Classification Using Linear Probability Model
+
+We can use standard OLS regression for classification. It's not ideal, but most of the time it's actually not too bad, either. Below we model the binary outcome of receiving pizza as a function of karma, total posts, posts on the pizza subreddit, whether or not the poster mentioned the words "student" or "grateful."
+
+```{r linear_model}
+# Linear model
+lm_mod<-lm(got_pizza~
+             karma+
+             total_posts+
+             raop_posts+
+             student+
+             grateful,
+           data=za_train,y=TRUE,na.exclude=TRUE);summary(lm_mod)
+```
+
+We're going to do something a bit different with the predictions from this model. After creating predictions, we're going to classify everyone with a predicted probablity above .5 as being predicted to get a pizza, while everyone with a predicted probability below .5 is predicted to not get one. We'll compare our classifications with the actual data. 
+
+```{r}
+#Predictions
+za_train<-za_train%>%
+  add_predictions(lm_mod)%>% ## Add in predictions from the model
+  rename(pred_lm=pred)%>% ## rename to be predictions from ols (lm)
+  mutate(pred_lm_out=ifelse(pred_lm>=.5,1,0))
+```
+
+Let's create a table that shows the predictions of our model against what actually happened
+```{r}
+pred_table<-table(za_train$got_pizza,za_train$pred_lm_out)
+
+pred_table
+
+prop.table(pred_table)
+rownames(pred_table)<-c("Predicted 0","Predicted 1")
+colnames(pred_table)<-c("Actually 0","Actually 1")
+```
+
+```{r}
+ModelMetrics::confusionMatrix(za_train$got_pizza,za_train$pred_lm_out)
+caret::confusionMatrix(as.factor(za_train$got_pizza),as.factor(za_train$pred_lm_out))
+```
+
+
+The confusion matrix generated here is explained [here](https://topepo.github.io/caret/measuring-performance.html#class). 
+
+We're usually interested in three things: the overall accuracy of a classification is the proportion of cases accurately classified. The sensitivity is the proportion of "ones" that are accurately classified as ones-- it's the probability that a case classified as positive will indeed be positive. Specificity is the probability that a case classified as 0 will indeed by classified as 0. 
+
+*Question: how do you get perfect specificity? How do you get 
+perfect sensitivity?*
+
+There are several well-known problems with linear regression as a classification algortihm. Two should give us pause: it can generate probabilites outside of 0,1 and it implies a linear change in probabilities as a function of the predictors which may not be justified given the underlying relationship between the predictors and the probability that the outcome is 1. Logistic regresssion should give a better predicted probability, one that's more sensitive to the actual relationship between the predictors and the outcome. 
+
+## Logistic regression as a classifier
+
+Logistic regression is set up to handle binary outcomes as the dependent variable. In particular, the predictions will always be a probability, which makes it better than the ironically named linear probability model. The downside to logistic regression is that it is modeling the log odds of the outcome, which means all of the coefficients are expressed as log odds, which no one understands intuitively. In this class, we're going to concentrate on logistic regression's ability to produce probabilities as predictions. Below I run the same model using logistic regression. Note the use of `glm` and the `family` option, which specifies a functional form and a particular link function. 
+
+```{r}
+#Logisitic model
+
+logit_mod<-glm(got_pizza~
+             karma+
+             total_posts+
+             raop_posts+
+             student+
+             grateful,
+             data=za_train,
+            na.action=na.exclude,
+            family=binomial(link="logit"),
+               y=TRUE)
+
+summary(logit_mod)
+```
+
+With these results in hand we can generate predicted probabilities and see if this model did any better. To get predicted probabilities, we need to specify `type=response` in our prediction call. 
+
+```{r}
+za_train<-za_train%>%
+  mutate(pred_logit=predict(logit_mod,type="response"))
+```
+
+We can convert the predictions to a binary variable by setting a "threshold" of .5. Any prediction above .5 is considered to be a 1, anything below, a 0. 
+```{r}
+
+
+za_train<-za_train%>%
+    mutate(pred_logit_out=ifelse(pred_logit>=.45,1,0))
+
+za_train<-za_train%>%
+    mutate(pred_logit_out=as.factor(pred_logit_out))
+
+za_train<-za_train%>%
+    mutate(got_pizza=as.factor(got_pizza))
+```
+
+Now we create a confusion matrix to see how we did. 
+```{r}
+confusionMatrix(data=as.factor(za_train$pred_logit_out),reference=as.factor(za_train$got_pizza))
+```
+
+## Applying predictions to the testing dataset.
+
+With our new (not very good) classifier, we can now add predictions to the testing dataset, and see how good this classifier is at predicting out of sample information. 
+
+```{r}
+load("za_test.RData")
+
+za_test<-za_test%>%
+  mutate(pred_logit=predict(logit_mod,newdata=.,type="response"))%>%
+      mutate(pred_logit_out=ifelse(pred_logit>=.45,1,0))
+
+za_test<-za_test%>%
+    mutate(pred_logit_out=as.factor(pred_logit_out))
+
+za_test<-za_test%>%
+    mutate(got_pizza=as.factor(got_pizza))
+
+
+confusionMatrix(data=za_test$pred_logit_out,reference=za_test$got_pizza)
+```
+
+## Thinking about classifiers
+
+First, make sure that your dependent variable really is binary. If you're working with a continuous variable (say, income) don't turn it into a binary variable (e.g. low income). 
+
+Second, remember that classifiers must always balance sensitivity and specificity. Don't be overly impressed by a high overall percent correctly predicted, nor a high level of either specificity or sensitivity. Instead, look for classifiers that have both. 
+
+
+
+
+
+

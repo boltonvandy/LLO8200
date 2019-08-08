@@ -1,0 +1,208 @@
+---
+title: "Interactive Graphics"
+author: "Will Doyle"
+date: "August 6, 2018"
+output: html_document
+---
+
+
+```{r}
+library(tidyverse)
+library(plotly)
+library(shiny)
+library(leaflet)
+library(tigris)
+library(htmlwidgets)
+```
+
+## Intro
+
+Interactive graphics can give your audience a lot of information directly at their fingertips. We'll go through three diferent types of interactive graphics. 
+
+- Univariate Graphics
+- Multivariate Graphics
+- Mapping
+
+```{r}
+load("pd.Rdata")
+```
+
+## Plotly Descriptives
+
+```{r}
+pd<-pd%>%mutate(coll_grad_rank=rank(coll_grad_pc))
+```
+
+
+```{r}
+gg<-ggplot(pd,
+           aes(x=coll_grad_rank,y=coll_grad_pc,
+               text=paste0(county,
+                           "<br>",
+                           "Percent College Grad: ",
+                           round(coll_grad_pc,1),
+                           "<br>",
+                           "Median Home Value: ",
+                           round(median_home_val,1)) ))
+gg<-gg+geom_point(color="lightblue")
+gg<-gg+xlab("Rank")+ylab("Percent College Graduates")
+
+gg<-ggplotly(gg)
+
+gg
+
+```
+
+We can add in tools like a rangelisder:
+```{r}
+rangeslider(gg)
+```
+
+
+## Plotly: Multivariate Graphics
+
+Example: https://www.nytimes.com/interactive/2016/04/29/upshot/money-race-and-success-how-your-school-district-compares.html
+
+Let's plot the level of household income by college graduates for each county, and then take a look at the results by county. The code below will create a plot that shows the relationship between these two variables. 
+
+```{r}
+gg<-ggplot(pd,aes(x=coll_grad_pc,y=median_hh_inc,size=pop2010,
+                          text=paste0(county,
+                           "<br>",
+                           "Percent College Grad: ",
+                           round(coll_grad_pc,1),
+                           "<br>",
+                           "Median Household Income: ",
+                           prettyNum(median_hh_inc,big.mark=",")
+                           )))
+
+gg<-gg+geom_point(alpha=.5,color="lightblue")
+
+gg<-gg+xlab("Percent College Graduates")+ylab("Median Household Income")
+
+ggplotly(gg)
+```
+
+
+```{r}
+gg<-ggplot(pd,aes(x=coll_grad_pc,y=median_home_val,size=pop2010,
+                          text=paste0(county,
+                           "<br>",
+                           "Percent College Grad: ",
+                           round(coll_grad_pc,1),
+                           "<br>",
+                           "Median Home Value: ",
+                           prettyNum(median_home_val,big.mark=",")
+                           )))
+
+gg<-gg+geom_point(alpha=.5,color="lightblue")
+
+gg<-gg+xlab("Percent College Graduates")+ylab("Median Home Value")
+
+ggplotly(gg)
+
+
+```
+
+
+## Leaflet for Mapping
+
+Example: https://peabody.vanderbilt.edu/research/studies/affordability/maps_pub4.php
+
+Mapping can be a great way to display spatial trends in data. Below we're going to create an interactive map that will show the percent of the population in every county in a set of states that has a college degree. To start with, we're going to use the `tigris` library to get what's called a shapefile. I'm going to do my normal trick of only downloading this file if it's not already on the computer. 
+
+A shapefile gives the outlines of a geographic area, which is the basis for being able to map that area. 
+```{r}
+##counties shapefile
+if(file.exists("cs.RData")==FALSE){
+cs<-counties(year=2010)
+save(cs,file="cs.RData")
+}else{
+  load("cs.Rdata")
+}
+```
+
+Our next step is to match a data file with the shapefile. In the US, fips codes are used to identify specific geographic areas. We're going to need to get the fips codes just for the states we're interested in. The following lines of code identify just the geographic areas we want to work with, which are identified in `states_list`.
+
+```{r}
+data(fips_codes)
+
+## Specify the state you want to work with here
+states_list<-c("TN")
+
+## Filter fips code to get just those states
+fips_codes<-fips_codes%>%group_by(state)%>%summarize(fips_code=first(state_code))
+fips_list<-fips_codes%>%filter(state%in%states_list)
+fips_list<-fips_list$fips_code
+```
+
+
+Now we're ready to combine the two datasets. We'll subset the `cs` shapefile to be just the states we want, then we'll subset the `pd` datafile to be just the variables we want. Then we'll use the `geo_join` function to put the two together. 
+```{r}
+
+## Switch names to lower case
+names(cs)<-tolower(names(cs))
+
+## subset to state list
+cs<-cs[cs$statefp%in%c(fips_list), ]## Just states we want
+
+##subset county dataset to be just college grads and county name
+pd_sub<-pd%>%select(fips,coll_grad_pc,median_hh_inc,county)%>%filter(grepl(states_list,county))
+
+## Join the two datasets
+cs<-geo_join(cs,pd_sub,"geoid10","fips")
+```
+
+With that, we have spatial dataset that includes data on all of the counties in the states we're interested in. We're going to use the `leaflet` function to draw a javascript-based map in html. To get started, we need to give it a palette to work with. Yellow-Green-Blue works will for a lot of maps. 
+
+```{r}
+pal<-colorNumeric(
+  palette="YlGnBu",
+  domain=cs$coll_grad_pc
+)
+```
+
+The interactivity in the map comes from being able to select various counties and see data on them. The code below creates a popup that will list both the percent of the county that's college graduates and the median household income. 
+
+```{r}
+popup<-paste0(cs$county,
+              "<br>",
+              "Percent College Graduates= ",
+              cs$coll_grad_pc,
+              "<br",
+              "Median Household Income= ",
+              prettyNum(cs$median_hh_inc,big.mark=",")
+)
+```
+
+Now we're ready to draw the map. The `leaflet` command needs to be told what tiles to use, what polygons to use, and what the legend should look like. Take a look at the [https://rstudio.github.io/leaflet/] vignette for more information. 
+
+```{r}
+map<-leaflet()%>%
+  addProviderTiles("CartoDB.Positron")%>%
+  addPolygons(data=cs,
+              fillColor=~pal(coll_grad_pc),
+              color="#b2aeae",
+              fillOpacity = .7,
+              weight=1,
+              smoothFactor = .2,
+              popup=popup
+              )%>%
+  addLegend(pal=pal,
+            values=cs$coll_grad_pc,
+            position="bottomright",
+            title="Percent College Graduates",
+            labFormat=labelFormat(suffix="%"))
+                
+  map
+```
+
+Once we've drawn the map, we can save it.
+```{r}
+saveWidget(widget=map,file="county_map.html")
+```
+
+## Shiny graphics
+
+Example: https://venkadeshwarank.shinyapps.io/Linear_Regression_Simulation/
+

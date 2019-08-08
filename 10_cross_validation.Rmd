@@ -1,0 +1,221 @@
+---
+title: "Cross Validation"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+The essence of prediction is discovering the extent to which our models can predict outcomes for data that does not come from our sample. Many times this process is temporal. We fit a model to data from one time period, then take predictors from a subsequent time period to come up with a prediction in the future. For instance, we might use data on team performance to predict the likely winners and losers for upcoming soccer games. 
+
+This process does not have to be temporal. We can also have data that is out of sample because it hadn't yet been collected when our first data was collected, or we can also have data that is out of sample because we designated it as out of sample.
+
+The data that is used to generate our predictions is known as 
+*training* data. The idea is that this is the data used to train our model, to let it know what the relationship is between our predictors and our outcome. So far, we have worked mostly with training data. 
+
+That data that is used to validate our predictions is known as *testing* data. With testing data, we take our trained model and see how good it is at predicting outcomes using out of sample data. 
+
+One very simple approach to this would be to cut our data in half. This is what we've done so far.  We could then train our model on half the data, then test it on the other half. This would tell us whether our measure of model fit (e.g. rmse, auc) is similar or different when we apply our model to out of sample data. 
+But this would only be a "one-shot" approach. It would be better to do this multiple times, cutting the data into two parts: training and testing, then fitting the model to the training data, and then checking its predictions against the testing data. That way, we could generate a large number of rmse's to see how well the model fits on lots of different possible out-of-sample predictions. 
+
+This process is called *cross-fold validation*, and it involves two important decisions: first, how will the data be cut, and how many times will the validation run. 
+ 
+
+```{r}
+library(tidyverse)
+library(modelr)
+library(caret)
+library(tictoc)
+```
+
+Next we load the quickfacts data, which contains county-by-county information. We're going to create a simple model that predicts median home values in the county as a function of education, home ownership and income. 
+
+```{r}
+load("pd.Rdata")
+pd<-pd%>%
+  select(median_home_val,median_hh_inc,coll_grad_pc,homeown_rate,per_capita_inc)%>%
+  mutate_all(funs(as.numeric))%>%
+  mutate(home_rank=percent_rank(median_home_val))%>% 
+  tbl_df()
+```
+
+```{r}
+gg<-ggplot(pd, aes(x=coll_grad_pc,y=home_rank))
+gg<-gg+geom_point()
+gg
+```
+
+We can run this model on the full dataset, but we're not taking advantage of the idea of cross-validation. 
+
+```{r}
+## Define the model
+mod1_formula<-formula(home_rank~coll_grad_pc+
+                        per_capita_inc)
+## Run the model against all of the data
+basic.mod<-lm(mod1_formula,
+              data=pd); summary(basic.mod)
+
+```
+
+The `crossv_kfold` command creates a list of datasets from our original dataset, each of which contains a testing and training dataset. The proportion of cases held out for testing is determined by the number of folds: 10 folds would indicate 1/10 of the data to be held out. 
+
+```{r}
+pd_cf<-pd%>%
+  crossv_kfold(20)
+pd_cf
+```
+
+The `pd_cf` dataset is now a nested dataset, as described in (Chapter 25)[http://r4ds.had.co.nz/many-models.html] of the Wickham r4ds book. 
+
+The next bit of code is key. It starts by converting all of the individual training datasets to tibbles. Then the model is run on each training dataset. Then apply the predictions from the model to each testing dataset, and finally pull the rmse from each of the testing datasets. 
+
+
+```{r}
+tic()
+rmse_mod1<-pd_cf %>% 
+  mutate(train = map(train, as_tibble)) %>% ## Convert to tibbles
+  mutate(model = map(train, ~ lm(mod1_formula,
+                                 data = .))) %>%
+  mutate(rmse = map2_dbl(model, test, rmse)) %>% ## apply model, get rmse
+  select(.id, rmse) ## pull just id and rmse 
+toc()
+```
+
+The resulting dataset includes the id for the cross validation and the rmse. We can summarize and plot this new data frame to see what our likely range of rmse happens to be. 
+
+```{r}
+summary(rmse_mod1$rmse)
+
+gg<-ggplot(rmse_mod1,aes(rmse))
+gg<-gg+geom_density()
+gg
+```
+
+As this shows, the rmse for the crossfold validations goes from a minimum of 
+`r  round(summary(rmse_mod1$rmse)[1],2)` to a maximum of `r  round(summary(rmse_mod1$rmse)[6],2)`, with a median of `r  round(summary(rmse_mod1$rmse)[3],2)`. 
+
+*Quick Exercise* Run the crossfold command again, but this time only 5 times. Then run it again, but 20 times. What happens to the RMSE? 
+
+## Full Cross Validation: Random Partition
+
+The `crossv_mc` command provides for a generalization of the crossfold command. For this command, we can specify the proportion to be randomly held out in each iteration, via `test=p` where `p` is the proportion to be held out. 
+
+```{r}
+pd_cv<-pd%>%
+  crossv_mc(n=1000,test=.2)
+pd_cv
+```
+
+The `pd_cv` dataset is a dataset of 1000x2 datasets, with each row containing a training and testing dataset. The testing dataset is .2 of the sample, but it's different each time. 
+
+Now we use the same approach, but with the MUCH larger qf_cv dataset. This will take a bit of time. 
+
+```{r}
+tic()
+mod1_rmse_cv<-pd_cv %>% 
+  mutate(train = map(train, as_tibble)) %>% ## Convert to tibbles
+  mutate(model = map(train, ~ lm(mod1_formula, data = .)))%>%
+  mutate(rmse = map2_dbl(model, test, rmse))%>% 
+  select(.id, rmse) ## pull just id and rmse 
+
+mod1_rmse_cv
+toc()
+```
+
+
+
+```{r}
+summary(mod1_rmse_cv$rmse)
+
+gg<-ggplot(mod1_rmse_cv,aes(rmse))
+gg<-gg+geom_density(bins=50,fill="blue",alpha=.2)
+gg
+
+```
+
+*Quick Question* Run a cross validation with 10 and then 100 iterations. What happens to the distribution of RMSE when run with different numbers of iterations? 
+
+## Selecting Between Models
+
+It's the comparison between two different cross-validated models that we're really interested in. We want to know which model will perform best in predicting the future. 
+```{r}
+tic()
+## Define the model
+mod2_formula<-formula("home_rank ~ 
+                      coll_grad_pc + 
+                      per_capita_inc+
+                      homeown_rate+
+                      median_hh_inc")
+
+
+mod2_rmse_cv<-pd_cv %>% 
+  mutate(train = map(train, as_tibble)) %>% ## Convert to tibbles
+  mutate(model = map(train, ~ lm(mod2_formula, data = .)))%>%
+  mutate(rmse = map2_dbl(model, test, rmse))%>% 
+  select(.id, rmse) ## pull just id and rmse 
+
+summary(mod2_rmse_cv$rmse)
+summary(mod1_rmse_cv$rmse)
+
+toc()
+
+gg<-ggplot(mod2_rmse_cv,aes(x=rmse))
+gg<-gg+geom_density(fill="orange",alpha=.2)
+gg<-gg+geom_density(data=mod1_rmse_cv,aes(x=rmse),fill="blue",alpha=.2)
+gg
+
+```
+
+This graphic gives us a sense of model performance: While model 2 (orange) generally has lower rmse for out-of-sample predictions, there's still overlap in the performance between the two models. 
+*Not So quick exercise* From the qf dataset, choose new variables to add to your model to predict median home values. Compare the distribution of rmse from your model to the ones I obtained. 
+
+## Model Tuning
+
+In model tuning, we try to find the best possible model among various candidates. There are two basic ways to acomplish this. One is using a model that the analyst has identified, either through theory or practice or both, as a good model to predict the outcome. This has been our basic perspective in this class. 
+
+## Machine Learning
+
+Of course, we can also just let the computer choose a model from a set of candidate variables. Below, I use stepwise regression, which involves proposing candidate variables and evaluating their ability to lower RMSE, as the basis for choosing a "best" model.
+
+```{r}
+#Tuning model parameters
+pd<-pd%>%select(-median_home_val)
+
+
+fitControl<-trainControl(method="boot",
+                         p=.2)
+
+
+fit1<-train(home_rank~per_capita_inc+
+              coll_grad_pc,
+            method="lm",
+            data=pd,
+            trControl=fitControl)
+
+summary(fit1)
+fit1$results
+
+## Stepwise Regression
+fit2<-train(home_rank~.,
+            data=pd,
+            method="glmStepAIC",
+            trControl=fitControl)
+
+summary(fit2)
+fit2$results
+
+rmse_data<-tbl_df(data.frame(fit1$resample$RMSE,fit2$resample$RMSE))
+names(rmse_data)<-c("fit1","fit2")
+
+gg<-ggplot(rmse_data,aes(x=fit1))
+gg<-gg+geom_density(fill="orange",alpha=.2)
+gg<-gg+geom_density(aes(x=fit2),fill="blue",alpha=.2)
+gg
+```
+
+What this shows is that the second model---using stepwise regression--- has superior out-of-sample results to the first model. 
+
+In different situations we may care more about WHY something predicts an outcome, and in other situations we care more about WHETHER something predicts an outcome. The key is to be clear with yourself about what you're interested in. Model selection via stepwise regression or other algorithms is not a panacea. 

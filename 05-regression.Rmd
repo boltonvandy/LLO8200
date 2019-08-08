@@ -1,0 +1,161 @@
+---
+title: "Using Regression for Prediction"
+output: html_document
+---
+
+## Overview
+
+So far, we've been using just the simple mean to make predictions. Today, we'll continue using the simple mean to make predictions, but now in a complicated way. Before, when we calculated conditional means, we did so in certain "groupings" of variables. When we run linear regression, we no longer need to do so. Instead, linear regression allows us to calculate the conditional mean of the outcome at _every_ value of the predictor. If the predictor takes on just a few values, then that's the number of conditional means that will be calculated. If the predictor is continuous and takes on a large number of values, we'statll still be able to calculate the conditional mean at every one of those values. 
+
+The model we posit for regression is as follows:
+
+$$Y=\beta_0+\beta_1 x_1 +\beta_2 x_2+ ... \beta_k x_k + \epsilon$$
+
+It's just a linear, additive model. Y increases or decreases as a function of x, with multiple x's included. $\epsilon$ is the extent to which an individual value is above or below the line created. 
+
+Let's say that you've got some student data and you want to target those students that may struggle in math. The intervention could be targeted based on what we know about students, much of which reflects broader inequalities in our education system, such as the relationship between SES and parental education and test scores. By intervening early we may help to reduce those inequalities. 
+
+We're going to be working with data on high school students from the Educational Longitudinal Study. Our goal will be to predict their math scores based on student characteristics. 
+
+```{r,echo=FALSE}
+rm(list=ls())
+library(tidyverse)
+library(forcats)
+library(ModelMetrics)
+library(modelr)
+```
+
+The ELS dataset is called `els_train`. I'll explain the "train" part in a bit-- it refers to a "training" dataset.
+
+```{r}
+load("els_train.RData")
+```
+
+## Bivariate regression
+
+Our dependent variable will be math scores, stored in this dataset as `bynels2m`. Let's take a look at this variable
+
+```{r}
+els_train%>%summarize(mean(bynels2m,na.rm=TRUE))
+
+gg<-ggplot(els_train,aes(x=bynels2m))
+gg<-gg+geom_histogram()
+gg
+```
+
+```{r}
+gg<-ggplot(els_train,aes(x=bynels2m))
+gg<-gg+geom_density()
+gg
+```
+
+
+This variable has a nice symmetric distribution. It looks approximately normal, which will help in interpreting the results. 
+
+```{r}
+
+#Model 1: simple bivariate regression
+
+mod1<-lm(bynels2m~byses1,data=els_train) #outcome on left, predictor on right 
+
+summary(mod1)
+confint(mod1)
+
+g1<-ggplot(els_train, aes(x=byses1,y=bynels2m))+ #specify data and x and y
+           geom_point(shape=1)+ #specify points
+           geom_smooth(method=lm) #ask for lm line
+g1
+
+els_train<-els_train%>%add_predictions(mod1)%>%rename(pred1=pred) #predict using data in memory
+ 
+## RMSE
+rmse_1<-modelr::rmse(mod1,els_train);rmse_1
+
+```
+
+What this shows is that as socio-economic status increases, math scores are predicted to increase. For every one unit increase in SES, math scores are predicted to increase by \$`r prettyNum(mod1$coefficients[2],digits=0)`. The rmse of `r  prettyNum(rmse_1,digits=2)` gives us a sense of how wrong the model tends to be when using just this one predictor. 
+
+_Quick Exercise_ Run a regression using a different predictor. Calculate rmse and see if you can beat my score. 
+
+## Multiple Regression. 
+
+Okay, so we can see that this is somewhat predictive, but we can do better. Let's add in a second variable: the parent's level of education. 
+
+```{r}
+#Part 2: Multiple regression
+
+mod2<-lm(bynels2m~as.factor(bypared)+
+           byses1,
+          data=els_train)
+
+summary(mod2) 
+
+els_train<-els_train%>%add_predictions(mod2)%>%rename(pred2=pred)
+
+rmse_2<-modelr::rmse(mod2,els_train); rmse_2
+
+```
+
+This finding reflects the basic inequity in our education system: lower income students score lower on math scores. This holds true even if we control for parental education. 
+
+_Quick Exercise_ Add another variable to your model from above and see what difference it makes. How is your RMSE? 
+
+## Transformations
+
+The `byses` variable is a little hard to interpret. It's on a scale from -2 to 2, which you should remember as the scale for a standardized variable or Z score. Let's transform it to be on a percentile scale from 0-100.
+
+```{r}
+els_train<-els_train%>%mutate(byses_p=percent_rank(byses1)*100)
+els_train%>%summarize(mean(byses_p,na.rm=TRUE))
+```
+
+```{r}
+mod3<-lm(bynels2m~byses_p+
+         as.factor(bypared),
+         data=els_train
+         );summary(mod3)
+```
+
+This changes the coefficient AND its interpretation. Now, for every one percent increase in SES, math scores are predicted to increase by `r round(mod3$coefficients[2],2)`. Linear transformations will not change the statistical significance (t value), but non linear transformations like the one we just did will, as you can see. Does this change the RMSE? 
+
+```{r}
+rmse_3<-modelr::rmse(mod3,els_train)
+```
+ It looks like it actually increases it a bit. 
+
+## Testing and Training
+
+The essence of prediction is discovering the extent to which our models can predict outcomes for data that *does not come from our sample*. Many times this process is temporal. We fit a model to data from one time period, then take predictors from a subsequent time period to come up with a prediction in the future. For instance, we might use data on team performance to predict the likely winners and losers for upcoming soccer games. 
+
+This process does not have to be temporal. We can also have data that is out of sample because it hadn't yet been collected when our first data was collected, or we can also have data that is out of sample because we designated it as out of sample.
+
+The data that is used to generate our predictions is known as 
+*training* data. The idea is that this is the data used to train our model, to let it know what the relationship is between our predictors and our outcome. So far, we have only worked with training data. 
+
+That data that is used to validate our predictions is known as *testing* data. With testing data, we take our trained model and see how good it is at predicting outcomes using out of sample data. 
+
+One very simple approach to this would be to cut our data in half. We could then train our model on half the data, then test it on the other half. This would tell us whether our measure of model fit (e.g. rmse, auc) is similar or different when we apply our model to out of sample data. That's what we've done today: we have only been working with half of our data-- the training half. 
+
+The testing data (which is a random half of the original dataset) is stored as `els_test`. Since we transformed a variable in the training dataset, we'll need to do the same in the testing dataset. 
+
+```{r}
+load("els_test.Rdata")
+els_test<-els_test%>%mutate(byses_p=percent_rank(byses1)*100)
+```
+
+Now we can use the model we trained (model 3) on the testing data.
+
+```{r}
+## Generate a prediction from the testing dataset
+rmse_test_1<-modelr::rmse(mod1,els_test);rmse_test_1
+
+rmse_test_2<-modelr::rmse(mod2,els_test);rmse_test_2
+
+rmse_test_3<-modelr::rmse(mod3,els_test);rmse_test_3
+```
+
+Notice that this is different than the value for our training dataset. 
+
+## Thinking about regression for prediction
+
+You MUST remember: correlation is not causation. All you can pick up on using this tool is associations, or common patterns. You can't know whether one thing causes another. Remember that the left hand side variable could just as easily be on the right hand side. 

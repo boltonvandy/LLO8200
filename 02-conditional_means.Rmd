@@ -1,0 +1,280 @@
+---
+title: "Conditional Means"
+output: html_document
+---
+
+# Analyzing Data: Conditional Means
+
+The conditional mean will be our first predictive algorithm. Conditional means answer the question: "Given what we know about a certain case, what can expect to see, on average?" The conditional mean is a powerful tool that is typically quite easy to explain to decision-makers. 
+
+We'll go through the following steps:
+
+1. Computing and plotting unconditional means
+2. Computing and plotting conditional means using a single predictor.
+3. Computing and plotting conditional means using multiple predictors. 
+
+
+```{r  include=FALSE}
+library(knitr)
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(plotly)
+library(Metrics)
+```
+
+## Dataset for this week
+
+We will be working with a dataset put together by the Census Bureau that summarizes the characteristics of the 3,088 counties in the United States. 
+
+```{r data}
+load("pd.Rdata")
+```
+
+```{r}
+pd%>%filter(county=="Los Angeles County, CA")%>%select(percapinc.2012)
+```
+
+
+The codebook for this dataset is stored as another dataset, `labels_explain`. The first column in this dataset is variable names, the second column is a full explanation of that variable. 
+
+```{r explain_date}
+
+## Full explanation of data in codebook
+load("pd_lab_explain.Rdata")
+
+#or use View
+View(lab_explain)
+```
+
+## Filter and select
+```{r}
+pd%>%filter(county=="Davidson County, TN")%>%
+  select(county,percapinc.2012)
+
+pd%>%filter(coll_grad_pc>30)%>%
+  select(county,coll_grad_pc,percapinc.2012)%>%
+  arrange(-percapinc.2012)
+
+```
+
+
+*Quick Exercise: What's per capita income in Los Angeles County, CA in 2012?*
+
+## Dependent Variable
+
+Our working example will be based on predicting income in a given county. Suppose we want to know what income level we can expect for a geographic area based on observed characteristics, such as the proportion of the population with a bachelor's degree. How would we predict the income based on what we know about the geographic area? 
+
+Let's begin by plotting the data to see what it looks like. To do this I need to first rank the counties by income. To create a rank variable that will be stored in the `pd` dataset, I use the `mutate` command. This creates a variable based on some calculation then stores it in the same dataset. I'm then going to plot incomes for each county in descending rank order. Using the `plotly` library I can make this interactive so we know which counties we're talking about. 
+
+This code creates a new variable called percapinc_rank, which ranked all counties on the basis of their income.
+```{r simple_plots}
+## Create a rank variable for income 
+pd<-pd%>%mutate(percapinc_rank=rank(percapinc.2010))
+```
+
+
+The next code will create a graphic for us. We will be using ``ggplot` to make all of our graphics in this class. The first step in ggplot is to create a graphics object. We could name it anything, I'm just going to name it gg. Within this object, I declare the data (`pd`) the x variable (`percapinc_rank`) and the y variable (`percapinc.2010`). I also note that I want to use the county name (county) as text. 
+
+```{r}
+## Plot by rank
+gg<-ggplot(data=pd, aes(x=percapinc_rank,
+                         y=percapinc.2010,
+                         text=county))
+```
+
+Now I need to declare the type of graphic, or geometry. By specifiying `geom_point` I'm saying I want a scatterplot.
+```{r}
+## Add Points
+gg<-gg+geom_point(alpha=.5,size=.5)
+```
+
+Now I'm going to add labels for the x and y axis. 
+```{r}
+## Add labels
+gg<-gg+xlab("Rank")+ylab("Per Capita Income, 2010")
+```
+
+
+And now we're ready to call the graphics object, `gg`
+```{r}
+gg
+```
+
+I'm going to store this `gg` object in another object called `gg1`. This is so I can come back to it later. 
+```{r}
+gg1<-gg
+```
+
+
+
+```{r}
+# Make Interactive plot
+gg_p<-ggplotly(gg)
+
+gg_p
+```
+
+## Unconditional Means
+
+If you were asked to predict the income for a given area without any additional information, the likely best guess is the overall average. We're going to begin with the unconditional mean, or simple average, as our first prediction. We'll again use the `mutate` command to plug in a variable that will be the average for every county, and we'll plot this as a predictor.  
+
+Our notation for the unconditional mean as a predictor is:
+
+$$\hat{Y}=\bar{Y} $$
+
+What this says is our predicted income $\hat{Y}$ is equal to average income $\bar{Y}$ We'll always use $Y$ as the notation for a dependent variable and $X$ as the notation for an independent variable. 
+
+```{r}
+
+##Unconditional Average
+pd%>%summarize(mean_percapinc.2010=mean(percapinc.2010,na.rm=TRUE))
+
+##Unconditional Average as a Predictor
+pd<-pd%>%mutate(mean_percapinc.2010=mean(percapinc.2010,na.rm=TRUE))
+
+##Plotting
+gg<-ggplot(data=pd,aes(y=percapinc.2010,x=percapinc_rank,color="Actual"))
+gg<-gg+geom_point(alpha=.5,size=.5)
+gg<-gg+geom_point(aes(y=mean_percapinc.2010,x=percapinc_rank,
+                  color="Predicted: Unconditional Mean"),
+                  size=.5)
+gg<-gg+xlab("Rank of Per Capita Income")+ylab("Per Capita Income")
+gg<-gg+scale_color_manual(name="Type",
+                          values=c("Actual"="black",
+                          "Predicted: Unconditional Mean"="blue")
+                          )
+gg<-gg+theme(legend.position="bottom")
+
+gg
+
+##Save for later
+
+gg2<-gg
+
+```
+
+This is of course a terrible prediction. In the absence of any other information, it's many times the best we can do, but we really ought to be able to do better. 
+
+To understand how far off we are, we need to summarize our errors. We will use different ways of doing this this semester, but let's start with a very standard one, Root Mean Squared Error, or RMSE. An error term is the vertical distance between each point and its prediction. The RMSE is the square root of the sum of squared errors. (Q:why do we square them?). 
+
+$$RMSE(\hat{Y})=\sqrt{ 1/n \sum_{i=1}^n(Y_i-\hat{Y_i})^2} $$
+
+The error term for our prediction using unconditional means will be stored in the variable $e1$. This variable will be equal to the actual value of per capita income `percapinc.2010` minues the mean value of per capita income `mean_percapinc.2010`. 
+
+```{r error_terms}
+pd<-pd%>%mutate(e1=percapinc.2010-mean_percapinc.2010)
+```
+
+To calculate the root mean squared error, we use the `rmse` function from the `Metrics` library. The code below calculates and displays the `rmse`
+```{r}
+## RMSE
+
+rmse_uncond_mean<-rmse(pd$percapinc.2010,pd$mean_percapinc.2010)
+
+rmse_uncond_mean
+```
+
+What this means is, on average, we are off by `r round(rmse_uncond_mean,2)`, which is a lot!
+
+##Conditional Means With One Predictor Variable
+
+To incorporate additional information into the mean, we need to calculate averages at levels of other predictors. Let's calculate the average per capita income at different levels of college education. The code below will calculate average income across counties at four different levels of college education-- the four quantiles of college education in the dataset. 
+
+```{r condtl_mean_single}
+##Condtional Average across a single variable
+
+## Create a variable for quartiles of college education
+pd<-pd%>%mutate(coll_grad_level=ntile(coll_grad_pc,4))
+
+pd%>%select(county,coll_grad_pc,coll_grad_level)%>%View()
+
+table(pd$coll_grad_level)
+
+##pd<-pd%>%mutate(coll_grad_level=ntile(coll_grad_pc,4))
+
+pd<-pd%>%group_by(coll_grad_level)%>% ## Group by predictor
+  ##Calculate mean at each level of predictor
+  mutate(pred_income_college=mean(percapinc.2010))%>%
+  ## Ungroup
+  ungroup()%>% 
+  #Rank by prediction, with ties sorted randomly
+  mutate(pred_income_college_rank=rank(pred_income_college,ties.method="random"))
+
+pd%>%select(county,coll_grad_pc,coll_grad_level,pred_income_college)%>%View()
+ 
+
+```
+
+To visualize this we can use a similar graphic as before: 
+
+```{r}
+pd%>%group_by(coll_grad_level)%>% ## Group by predictor
+  ##Calculate mean at each level of predictor
+  summarise(pred_income_college=mean(percapinc.2010))
+
+gg<-ggplot(data=pd,aes(x=pred_income_college_rank,y=percapinc.2010,color="Actual"))
+gg<-gg+geom_point(alpha=.5,size=.5)
+gg<-gg+geom_point(aes(x=pred_income_college_rank,y=pred_income_college,color="Predicted:Conditional Mean, 1 var"))
+gg<-gg+ scale_color_manual("Type",values=c("Predicted:Conditional Mean, 1 var"="red","Actual"="black"))
+gg<-gg+theme(legend.position="bottom")
+gg<-gg+xlab("Rank")+ylab("Per Capita Income, 2010")
+gg
+
+##Save for later
+gg3<-gg
+
+```
+
+
+
+Our notation for this predictor will be:
+
+$$\hat{Y}=(\bar{Y}|X=x) $$
+
+That is, the predicted value of y, $\bar{Y}$ is equal to the mean value of $Y$ given our predictor $X$ (college graduate levels in this case) is equal to a given value of $X$, denoted by $x$. 
+
+Let's see what happened to our RMSE when we did a conditional as opposed to an unconditional mean. 
+
+Remember 
+```{r}
+rmse_cond_mean_one<-rmse(pd$percapinc.2010,pd$pred_income_college)
+rmse_cond_mean_one
+```
+
+
+*Quick Exercise: Calculate per capita income as a function of the proportion of the county with a high school education*
+
+We can continue "binning" the data to define averages by more and more subgroups. For instance, we might want to calculate the average income by education AND home ownership rate.
+
+## New Variable Home Ownership Rate
+```{r}
+## Create a variable for quartiles of college education
+pd<-pd%>%mutate(homeown_rate_level=ntile(homeown_rate,4))
+```
+
+```{r}
+pd%>%group_by(homeown_rate_level)%>% ## Group by predictor
+  ##Calculate mean at each level of predictor
+  summarise(pred_income_homeown_rate=mean(percapinc.2010))
+```
+
+
+```{r}
+pd<-pd%>%group_by(coll_grad_level,homeown_rate_level)%>% ## Group by predictor
+  ##Calculate mean at each level of predictor
+  mutate(pred_income_coll_and_homeown=mean(percapinc.2010))%>% 
+  ## Ungroup
+  ungroup()%>% 
+  #Rank by prediction, with ties sorted randomly
+  mutate(pred_income_coll_and_homeown_rank=rank(pred_income_coll_and_homeown,
+                                                ties.method="random"))
+```
+
+```{r}
+rmse_cond_mean_two<-rmse(pd$percapinc.2010,pd$pred_income_coll_and_homeown)
+rmse_cond_mean_two
+```
+
+
+
+

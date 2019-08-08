@@ -1,0 +1,303 @@
+---
+title: "Web Scraping"
+author: "Will Doyle"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+## Introduction
+
+Many large web sites host a huge amount of information. This information is encoded and delivered on demand to the user within a web page, which is really just a markup language that a browser can understand. We can take this data and analyze it using R, via a variety of different means. Today we'll cover scraping web tables and interacting via Automated Programming Interfaces.
+
+## Ethics and Responsiblity
+
+Many of the tools we'll cover can be quite powerful ways to interact with data stored online and gather it for analysis. Because they're powerful, you need to be careful with them. In particular, try to request information in a way that will not burden the website owners. What constitutes a burden depends on the website. Google, Twitter, Facebook, all of the big websites have protections in place to guard against too many requests and have a huge amount of capacity for taking the requests they grant. Smaller websites may not have either. Always strive to be minimally intrusive: you're usually getting this data for free. 
+
+## Ways of getting data from the web
+
+We will cover several different ways you can get data from the web
+
+1. Directly downloading web pages via the `url()` command. 
+1. Scraping simple web tables via `read_html()` and `html_table()` command
+1. Interacting with Application Programming Interfaces (APIs) via R libraries that have been designed as "wrappers" for these interfaces, like the awesome `acs` library and the `tigris` library for geographic shapes. 
+1. Interacting with APIs directly, 
+
+
+## Libraries
+
+We will use multiple new libraries today. Among the ones you'll need: 
+
+* `rvest` for scraping websites
+
+* `acs` for accessing American Community Survey data via the census API
+
+
+```{r}
+library(tidyverse)
+library(rvest)
+library(acs)
+library(lubridate)
+library(noncensus)
+library(tigris)
+```
+
+
+## API keys
+
+You will also need an API key. 
+
+* The Census API, available here: https://api.census.gov/data/key_signup.html 
+
+# Basics of interacting with information stored online
+
+R can understand a web connection via the `url` command. Once that connection is established, we can download whatever we'd like. 
+
+```{r}
+
+#Web connections: url
+# example
+r_home = url("http://www.r-project.org/")
+r_home
+
+# Pulling text from a website using readlines
+# url of Moby Dick (project Gutenberg)
+moby_url = url("http://www.gutenberg.org/files/2701/2701-h/2701-h.htm")
+# reading the content (first 1500 lines)
+moby_dick = readLines(moby_url, n = 1500)
+moby_dick[1205:1230]
+```
+
+# Scraping web tables
+
+When we talk about "scraping" a web table, we're talking about pulling a table that exists on a website and turning it into a usable data frame for analysis. Below, I take the table from  `http://en.wikipedia.org/wiki/Marathon_world_record_progression` for men's marathon times and plot the change in speed in m/s as a function of the date that the world record was set. 
+
+```{r}
+marathon_wiki = "https://en.wikipedia.org/wiki/Marathon_world_record_progression"
+
+# Get the page, pull the tables via html_table
+marathon <- read_html(marathon_wiki)%>%html_table(fill=TRUE)
+
+#Men's is the first table
+marathon<-tbl_df(data.frame(marathon[[1]]))
+
+#Convert time to seconds
+marathon<-marathon%>%
+  mutate(Time2=hms(as.character(Time)))%>%
+  mutate(Time2=period_to_seconds(Time2))
+
+#Marathons are 42,200 meters long
+marathon$speed<-(4.22e4)/marathon$Time2
+
+#Get dates in a usable format usin lubridate::mdy
+marathon$date<-mdy(marathon$Date)
+
+marathon_men<-marathon
+marathon_men$gender="men"
+```
+
+
+```{r}
+#women's is the first table
+
+
+# Get the page, pull the tables via html_table
+marathon <- read_html(marathon_wiki)%>%html_table(fill=TRUE)
+
+
+marathon<-tbl_df(data.frame(marathon[[2]]))
+
+#Convert time to seconds
+marathon<-marathon%>%
+  mutate(Time2=hms(as.character(Time)))%>%
+  mutate(Time2=period_to_seconds(Time2))
+
+#Marathons are 42,200 meters long
+marathon$speed<-(4.22e4)/marathon$Time2
+
+#Get dates in a usable format usin lubridate::mdy
+marathon$date<-mdy(marathon$Date)
+
+marathon_women<-marathon
+marathon_women$gender="women"
+
+marathon_combine=bind_rows(marathon_men,marathon_women)
+```
+
+
+
+
+## Progression of World Record Marathon Speed in Meters/Second
+```{r}
+
+marathon<-marathon%>%mutate(Nationality=fct_reorder(.f=as.factor(Nationality),.x=-speed,fun = max))
+
+g1<-ggplot(data=marathon_combine,
+           aes(y=speed,x=date,
+               #Reorder nationality by fastest times
+               color=Nationality)
+           )  
+
+g1<-g1+geom_point()+
+      facet_wrap(~gender)+
+           xlab("Date")+
+           ylab("Meters/Second")
+
+g1
+
+```
+
+_Quick Exercise_ Repeat the above analysis for women's world record progression.
+
+# Interacting via APIs
+
+Many websites have created Application Programming Interfaces, which allow the user to directly communicate with the website's underlying database without dealing with the intermediary web content. These have been expanding rapdily and are one of the most exciting areas of development in data access for data science. 
+
+Today, we'll be working with the American Community Survey from the census. Please go to: `http://www.census.gov/developers/` and click on "Get a Key" to get your census key. 
+
+*YOU NEED TO PAY ATTENTION TO TERMS OF USE WHEN USING APIS. DO NOT VIOLATE THESE.*
+
+With these keys in hand, we can interact with these various databases. Let's say we have information on zip codes for students, and we want to know their likely income level. We can do this by using the American Community Survey API. 
+
+## Zip Code Level Data from the American Community Survey
+
+The first step is to create a list of all zip codes in Davidson County. We can do this by using another dataset that includes a comprehensive listing of zip codes by county and city. 
+
+We start by using the lookup_code from the `tigris` package to get the fips codes for Davidson County in TN (Davidson is home to Vanderbilt).
+```{r}
+## Look up fips code for county
+lookup_code("CA","Orange") 
+
+state_fips<-"47"
+county_stub<-"037"
+```
+
+Next, we'll combine the state and county fips into a single object
+
+```{r}
+county_fips<-paste0(state_fips,county_stub)
+```
+
+```{r}
+# Get dataset that matches all zip codes to cities, counties and states. 
+county_to_zip<-read_csv("http://www2.census.gov/geo/docs/maps-data/data/rel/zcta_county_rel_10.txt")
+save(county_to_zip,file="county_to_zip.Rdata")
+
+#easier names to work with
+names(county_to_zip)<-tolower(names(county_to_zip))
+
+#Just zip codes in selected county
+county_to_zip<-county_to_zip%>%
+  filter(state==as.numeric(state_fips),county==county_stub)%>%
+  select(zcta5,state,county)
+
+#list of zip codes
+ziplist<-county_to_zip$zcta5
+
+#City names
+data(zip_codes)
+
+city_zip<-zip_codes%>%filter(zip%in%ziplist)%>%select(zip,city)
+
+#Arrange in order
+city_zip<-city_zip%>%arrange(as.numeric(zip))
+```
+
+Next, we'll turn to the American Community Survey. This includes a large number of tables (available here in excel file form:  https://www.census.gov/programs-surveys/acs/technical-documentation/summary-file-documentation.html) that cover many demographic and other characteristics of the population, down to the level of zip codes. We'll use the `acs` package to get two tables for the zip codes we're interested in: levels of education and income. We'll turn these tables into two variables: the proportion of the population with incomes above $75,000, and the proportion of the population with at least a bachelor's degree. 
+
+The first step is to get the table from ACS. Below, I submit a request using my key to get table B15002, which contains information on education levels. 
+
+```{r}
+# Get your own key and save as my_acs_key.txt
+my_acs_key<-readLines("my_acs_key.txt",warn = FALSE)
+acs_key<-my_acs_key
+
+# Or just paste it here.
+#acs_key<-"b27a265fe0dc7c49bd9281d6bc778637f10685e3"
+
+#List of tables: https://www.census.gov/programs-surveys/acs/technical-documentation/summary-file-documentation.html under, 1-year appendices
+# b15002: education of pop over 25, by sex 
+# b19001: household income over last 12 months
+
+api.key.install(acs_key, file = "key.rda")
+
+select_zip<-geo.make(zip.code=ziplist)
+
+county_educ=acs.fetch(geography=select_zip,
+                      endyear=2016,
+                      table.number="B15002",
+                      col.names="pretty",verbose=T)
+#save(county_educ,file="county_educ_la.Rdata")  # <---- this may take a long time :(
+acs.colnames(county_educ)
+```
+
+## Organizing ACS data
+
+The trick with ACS data is organizing it in a way that's going to make sense. For us to get the proportion of indivudals with a college degree or more, we're going to need to take the numbers of people who are in each of the various age levels for education, and then divide by the total number of people in the zip code. Below I include code to calculate the proportion of individuals in each zip code who have at least a bachelor's degree. 
+
+```{r}
+## Proprtion of individuals at college or above=
+## number with college degree/
+## total number
+prop_coll_above<-divide.acs(numerator=(county_educ[,15]+
+                                      county_educ[,16]+
+                                      county_educ[,17]+
+                                      county_educ[,18]+
+                                      county_educ[,32]+
+                                      county_educ[,33]+
+                                      county_educ[,34]+
+                                      county_educ[,35]),
+                            denominator=county_educ[,1]
+)### Double check -- are these the correct columns??!??
+
+#prop with educational attainment=number with level of ed attain/total pop
+```
+
+
+## Family Income Data
+```{r}
+
+# 19001-- family income           
+county_income<-acs.fetch(geography=select_zip, 
+                        endyear = 2016,
+                        table.number="B19001", 
+                        col.names="pretty")
+
+acs.colnames(county_income)
+
+#Proportion above 75k-- 
+prop_above_75<-divide.acs(numerator=(county_income[,13]+
+                            county_income[,14]+
+                            county_income[,15]+
+                            county_income[,16]+
+                            county_income[,17]),
+                          denominator=county_income[,1]
+                          )
+
+                          
+# Convert to tibble
+county_df<-tibble(substr(geography(county_educ)[[1]],7,11),
+                       as.numeric(estimate(prop_coll_above)),
+                       as.numeric(estimate(prop_above_75))
+)
+
+
+# Give it easy to use names
+names(county_df)<-c("zip","college_educ","income_75")
+save(county_df,file="dav.RData")
+
+head(county_df)
+```
+
+```{r}
+
+gg<-ggplot(county_df,aes(x=college_educ,y=income_75))
+gg<-gg+geom_point()
+gg
+
+```
+
+
+_Quick Exercise_ Pull table B23001 "Sex by Age by Employment Status for the Population 16 and over" from ACS. 
+
+This resource is amazingly helpful. It means that with a list of zip codes you can get a huge amount of information about the area where the individual resides, including education, housing, income, medical care and other topics. 

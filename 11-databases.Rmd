@@ -1,0 +1,298 @@
+---
+title: "Using Databases"
+author: "Will Doyle"
+output: html_document
+---
+
+# Introduction: What's a Database? 
+
+Databases are the primary way large organizations and governments organize and store data. What makes a database distinct from a dataset is that it stores data in multiple tables, which are called "flat files" in the parlance of databases. The relationships between each of the tables is recorded in a schema. Some terms from database land and their translation in R:
+
+* A table (sometimes called a file) in a database is like a data frame in R: a 2 dimensional array. The 2 dimensions are referred to as "records" and "fields". These are typically organized by their primary id, or unit of analysis. 
+
+* A record is what we could call a case or a unit of observation. A record is composed of fields.
+
+* A field is what we would call a variable name. A field is composed of multiple records
+
+* A relational database is a set of tables that are linked by a set of common identifiers. Not every table can be linked to every other table, and tables do not need to have the same primary ids. 
+
+* A database management system is software that provides a way to interact with a database. 
+
+The DBMS that is used most frequently is SQL and its variants, MYSQL and sqlite. Mariadb is a newer "sort of" variant of sql. Google BigQuery is one used by many companies, while Microsoft Access is a plague that has been set upon us for our transgressions. We hope someday the curse will be lifted. 
+
+An R analyst typically doesn't want to be a database person-- they just want to get the data out in a way that they can use for data analysis. It's not worth it to store data on your own computer in a database-- it will just slow you down. Instead, this lesson is intended for when you have a chance to interact with a truly large database. 
+
+# NYC Flights
+
+Today we'll use the `nyclfights13` database, which contains information on every single flight departing New York City in 2013, including airline information, airport information, flight information, plane information and weather information. 
+
+```{r}
+# Mostly taken from : http://cran.r-project.org/web/packages/dplyr/vignettes/databases.html circa 2014
+
+# Will need: nycflights13 RSQLite, 
+
+#Get libraries
+library(tidyverse)
+library(nycflights13)
+library(RSQLite)
+```
+
+The first thing we'll do is get all of the various tables open. They're stored in `data()` from the `nycflights` library. 
+
+```{r}
+# Data sources from NYC flights
+data(flights)
+data(airlines)
+data(airports)
+data(weather)
+data(planes)
+```
+
+# Connecting to a database
+
+I'm going to do something kind of unusual for this class: I'm going to create a database from existing flat files. You should NEVER do this-- it's just for teaching. I'm using the RSQLite package to open a connection to a database. In your work, you would just open the connection, many times through a secure network. You'll need instructions from a database admin on how to do this. 
+
+`con` below refers to our connection to a database. It remains open until we close it. It will be based on the properties of the database we're trying to access. 
+
+```{r}
+con <- dbConnect(RSQLite::SQLite(), ":memory:")
+
+#Write flights tables to database (you won't usually do this)
+dbWriteTable(con,
+             "flights", 
+             as.data.frame(flights))
+
+dbWriteTable(con,
+             "planes", 
+             as.data.frame(planes))
+
+dbWriteTable(con,
+             "airlines", 
+             as.data.frame(airlines))
+
+dbWriteTable(con,
+             "weather", 
+             as.data.frame(weather))
+
+dbWriteTable(con,
+             "airports", 
+             as.data.frame(airports))
+```
+
+
+## Tables and Fields
+Now I have an open connection to a database that contains multiple tables. Let's ask which tables we have access to:
+```{r}
+#List tables in database
+dbListTables(con)
+```
+
+For some of these tables, what fields are included? 
+
+```{r}
+#List fields in various tables
+dbListFields(con,"airlines")
+
+dbListFields(con,"flights")
+
+dbListFields(con,"planes")
+
+dbListFields(con,"weather")
+
+```
+
+## Verbs for Databases
+
+SQL is its own language. One of the main things people do with SQL is to generate requests. Below, we create request text which asks for every field from the flights table, then sends that query to the database. Once we get the return back, we turn it into a data frame. As a matter of good practice, we also clear that request. Click [here](http://cse.unl.edu/~sscott/ShowFiles/SQL/CheatSheet/SQLCheatSheet.html) for a cheat sheet on SQL queries. 
+```{r}
+#Generate a SQL request to a database
+req_text<-"Select * from airlines"
+
+#Send query through connection
+req<-dbSendQuery(con,req_text)
+
+#Generate dataframe from results
+req_df<-dbFetch(req,n=-1)
+
+#Good practice: clear request
+dbClearResult(req)
+
+```
+
+Let's take a look at the generated data frame. 
+```{r}
+dim(req_df)
+
+head(req_df,20)
+```
+
+*Quick Exercise:*  Get the weather table and put it in a data frame
+
+## Select and From
+
+Many times we want to generate a request that will only give us part of some tables. We'd also like to join tables together in many circumstances. Below we build a SQL request that includes the key verbs SELECT, FROM, JOIN and WHERE.
+
+Let's say that we're interested in which airlines might have longer delays. 
+
+```{r}
+req1_text<-"SELECT f.dep_delay from flights f 
+            "
+req1<-dbSendQuery(con,req1_text)
+
+req1_df<-dbFetch(req1,n=-1)
+
+dbClearResult(req1)
+
+head(req1_df) 
+```
+
+We then need to get the airline data from the airline table
+```{r}
+
+req1_text <- "SELECT a.carrier, a.name
+FROM airlines a"
+
+```
+
+Notice how the SELECT commands give a prefix to field names, and that the FROM command identifies that same prefix when specifying the table. 
+
+## Join and Where
+
+We have airline information and departure information, but now we need to put them together. The JOIN command does just this. We need to specify for the JOIN command how we're going to put these two tables together. 
+
+```{r}
+req1_text<-"SELECT a.carrier, a.name, f.dep_delay 
+            FROM flights f 
+            JOIN airlines a ON a.carrier=f.carrier 
+            "
+req1<-dbSendQuery(con,req1_text)
+
+req1_df<-dbFetch(req1,n=-1)
+
+dbClearResult(req1)
+
+head(req1_df)
+```
+
+The resulting dataset has lots of short delays, those less than an hour. Let's say we're interested in finding out which airlines have more delays of more than an hour. We need to use the WHERE command to figure this out. 
+
+```{r}
+#New request: which carriers have longer delays? 
+req1_text<-"SELECT a.carrier, a.name, f.dep_delay 
+            FROM flights f 
+            JOIN airlines a ON a.carrier=f.carrier 
+            WHERE f.dep_delay>60
+            "
+req1<-dbSendQuery(con,req1_text)
+
+req1_df<-dbFetch(req1,n=-1)
+
+dbClearResult(req1)
+
+head(req1_df)
+
+table(req1_df$name)
+
+delay_summary<-req1_df%>%
+  group_by(name)%>%
+  summarize(avg_delay=mean(dep_delay,na.rm=TRUE))%>%
+  arrange(-avg_delay)
+
+delay_summary
+```
+
+In this year, if flights were to be delayed by more than an hour, Hawaiian Airlines had the longest subsequent delays. 
+
+```{r}
+#New request: which carriers have the most long-distance delays? 
+req1_text<-"SELECT a.carrier, a.name, f.distance, f.dep_delay 
+            FROM flights f 
+            JOIN airlines a ON a.carrier=f.carrier 
+            WHERE f.distance>1000
+            "
+req1<-dbSendQuery(con,req1_text)
+
+req1_df<-dbFetch(req1,n=-1)
+
+dbClearResult(req1)
+
+head(req1_df)
+
+table(req1_df$name)
+
+dist_flights<-req1_df%>%
+  group_by(name)%>%
+  tally()%>%
+  arrange(-n)
+
+dist_flights
+
+delay_summary<-req1_df%>%
+  group_by(name)%>%
+  summarize(avg_delay=mean(dep_delay,na.rm=TRUE))%>%
+  arrange(-avg_delay)
+
+```
+
+
+We can combine multiple tables to answer questions about how multiple factors, like weather and carrier, might be related. 
+
+```{r}
+#SQL request, flight info combined with weather info
+weather_text<-"SELECT f.year, f.month, f.day, f.distance, f.dep_delay, w.visib, w.wind_speed, w.wind_gust, a.name
+              FROM weather w 
+              JOIN flights f 
+              JOIN airlines a
+              ON f.year=w.year
+              AND f.month=w.month
+              AND f.day=w.day
+              AND f.carrier=a.carrier
+              WHERE f.dep_delay>20 AND w.wind_gust<100"
+
+weather_req<-dbSendQuery(con,weather_text)
+
+weather_df<-dbFetch(weather_req,n=-1)
+
+dbClearResult(weather_req)
+
+head(weather_df)
+
+weather_summary<-
+  weather_df%>%
+  group_by(name,wind_gust)%>%
+  summarize(avg_delay=mean(dep_delay,na.rm=TRUE))
+
+
+weather_summary_2<-
+  weather_df%>%
+  group_by(wind_speed)%>%
+  summarize(avg_delay=mean(dep_delay,na.rm=TRUE))
+
+
+weather_summary
+
+```
+
+As always, this data can then be plotted to view trends. 
+
+```{r}
+#Plot average delay by wind gust
+g1<-ggplot(data=weather_summary_2,aes(x=wind_speed,y=avg_delay))
+g1<-g1+geom_point()
+g1<-g1+geom_smooth()
+g1
+
+```
+
+*Quick Exercise* Plot average delay by wind speed. 
+
+It's good practice to disconnect from a database when done. 
+```{r}
+## Disconnect when done
+dbDisconnect(con)
+```
+
+## MY ADVICE
+
+Unless you're going to be a database analyst, do a bare minimum in the DBMS. Instead, use the DBMS to generate tables of manageable size for your computer, then get to work with R. Also, buy low and sell high. 
+

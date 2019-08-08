@@ -1,0 +1,22 @@
+---
+title: "Codebook for ELS Data"
+author: "Will Doyle"
+date: "2/6/2019"
+output: pdf_document
+---
+
+|Name | Descripton
+---   |    ---
+|stu_id | Student Id
+|bynels2m | Math Score
+|bynels2r | Reading Score
+|amind| American Indian/Native American
+|asian| Asian
+|black| Black/African American
+|white| White
+|hispanic | Hispanic
+|urm | Underrepresented Minority
+|byses1| Socio-Economic Status
+|byincome | Income (1-13, in $10,000)
+|bypared| Parental Education
+|byrace | Race
