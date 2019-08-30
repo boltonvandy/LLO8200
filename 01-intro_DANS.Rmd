@@ -1,0 +1,51 @@
+---
+output:
+  html_document: default
+  word_document: default
+---
+First set environment
+```{r setup} 
+## Clear environment
+rm(list=ls())
+## Get necessary libraries-- won't work the first time, because you need to install them!
+library(tidyverse)
+```
+load data
+```{r load_data}
+## Load in the data
+load("college.Rdata")
+```
+*Quick Exercise: What is the admission rate at UNC Chapel Hill?*
+Dan's Answer
+retrieve UNC CH data, then select and show name and admission rate.
+```{r UNC}
+sc%>%filter (instnm=="University of North Carolina at Chapel Hill")%>%select(instnm,adm_rate)
+```
+Selective Schools
+```{r SEL}
+##Selective Schools
+sc%>%filter(adm_rate<.1)%>%summarize(mean_earnings=mean(md_earn_wne_p6,na.rm=TRUE))
+```
+Non-selective Schools
+```{r NSEL}
+## not very selective schools?
+sc%>%filter(adm_rate>.3)%>%summarize(mean_earnings=mean(md_earn_wne_p6,na.rm=TRUE))
+```
+High SAT
+```{r HSAT}
+## High SAT Score vs size
+sc%>%filter(sat_avg>1200)%>%summarize(mean_size=mean(ugds,na.rm=TRUE))
+```
+Low SAT
+```{r LSAT}
+## Low SAT score vs size
+sc%>%filter(sat_avg<1000)%>%summarize(mean_small=mean(ugds,na.rm=TRUE))
+```
+Week 2 comparative and plot
+
+Cost v debt
+```{r cost}
+#sc%>%summarize(costt4_a)
+#sc%>%summarize(debt_mdn)
+
+```
