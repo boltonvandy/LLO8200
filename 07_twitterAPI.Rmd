@@ -1,6 +1,34 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+
+
+```{r}
+### Install the needed packages...
+# install.packages("twitteR")
+#install.packages("ROAuth")
+# install.packages("rtweet")
+#library(arules)
+#library(rtweet)
+knitr::opts_chunk$set(echo = TRUE)
+library(twitteR)
+library(ROAuth)
+library(jsonlite)
+library(rjson)
+library(tokenizers)
+library(tidyverse)
+library(tm)
+library(wordcloud)
+```
+
 ####### Twitter in R
 
 ```{r}
+
+
+
 ## From Gates
 #  Consumer API keys
 #  Access token & access token secret
@@ -10,6 +38,9 @@
 ## for security purposes. Instead, for simplicity, I include my secrete keys
 ## below. PLEASE create your own account and use your own keys.
 #Insert your consumerKey and consumerSecret below
+
+## Go here for more info:  https://developer.twitter.com/en/account/get-started
+
 
 
 consumerKey='SiMslBfTdWEimvLweRDTTrZVH'
@@ -36,22 +67,6 @@ https://mkearney.github.io/blog/2017/06/01/intro-to-rtweet/
  https://rtweet.info/
 
 
-```{r}
-### Install the needed packages...
-# install.packages("twitteR")
-#install.packages("ROAuth")
-# install.packages("rtweet")
-library(arules)
-library(rtweet)
-library(twitteR)
-library(ROAuth)
-library(jsonlite)
-library(rjson)
-library(tokenizers)
-library(tidyverse)
-library(tm)
-library(wordcloud)
-```
 
 #  Using twittR 
 
@@ -61,12 +76,12 @@ setup_twitter_oauth(consumerKey,consumerSecret,access_Token,access_Secret)
 # Below is the function that scours twitter for a particular hash tag.
 # n is the number of tweets to be collected
 
-Search<-twitteR::searchTwitter("#Trump",n=50,since="2019-09-09")
-(Search_DF <- twListToDF(Search))
+Search<-twitteR::searchTwitter("#Trump",n=80,since="2019-09-10")
+Search_DF <- twListToDF(Search)
 
 # If you wish to store the tweets in a csv file ... 
 TransactionTweetsFile = "tweets.csv"
-(Search_DF$text[1])
+head(Search_DF$text[1])
 
 
 ## Start the file

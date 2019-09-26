@@ -14,7 +14,7 @@ We'll go through the following steps:
 3. Computing and plotting conditional means using multiple predictors. 
 
 
-```{r  include=FALSE}
+```{r  include=TRUE, warning=TRUE}
 library(knitr)
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
@@ -30,7 +30,7 @@ We will be working with a dataset put together by the Census Bureau that summari
 load("pd.Rdata")
 ```
 
-```{r}
+```{r }
 pd%>%filter(county=="Los Angeles County, CA")%>%select(percapinc.2012)
 ```
 
@@ -43,11 +43,11 @@ The codebook for this dataset is stored as another dataset, `labels_explain`. Th
 load("pd_lab_explain.Rdata")
 
 #or use View
-View(lab_explain)
+#View(lab_explain)
 ```
 
 ## Filter and select
-```{r}
+```{r }
 pd%>%filter(county=="Davidson County, TN")%>%
   select(county,percapinc.2012)
 
@@ -67,6 +67,7 @@ Our working example will be based on predicting income in a given county. Suppos
 Let's begin by plotting the data to see what it looks like. To do this I need to first rank the counties by income. To create a rank variable that will be stored in the `pd` dataset, I use the `mutate` command. This creates a variable based on some calculation then stores it in the same dataset. I'm then going to plot incomes for each county in descending rank order. Using the `plotly` library I can make this interactive so we know which counties we're talking about. 
 
 This code creates a new variable called percapinc_rank, which ranked all counties on the basis of their income.
+
 ```{r simple_plots}
 ## Create a rank variable for income 
 pd<-pd%>%mutate(percapinc_rank=rank(percapinc.2010))
@@ -200,7 +201,7 @@ pd<-pd%>%group_by(coll_grad_level)%>% ## Group by predictor
   #Rank by prediction, with ties sorted randomly
   mutate(pred_income_college_rank=rank(pred_income_college,ties.method="random"))
 
-pd%>%select(county,coll_grad_pc,coll_grad_level,pred_income_college)%>%View()
+#pd%>%select(county,coll_grad_pc,coll_grad_level,pred_income_college)%>%View()
  
 
 ```
