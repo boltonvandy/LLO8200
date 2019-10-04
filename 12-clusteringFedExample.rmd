@@ -45,18 +45,18 @@ sum(is.na(FederalistPapers))
 Once the data has been vectorized we can now apply analysis techniques such as clustering. First we will remove the labels and determine the "optimal" numbers of clusters for the clustering algorithm. Using total withinness we can estimate a "good" number of clusters. 
 
 ```{r kmeans}
-# Remove author names from dataset
+# Remove author names from dataset for clustering purposes
 FedPapers_km <-FederalistPapers[,2:72]
 
 # Make the file names the row names. Need a dataframe of numerical values for k-means
 rownames(FedPapers_km) <- FedPapers_km[,1]
 FedPapers_km[,1] <- NULL
 
-View(FedPapers_km)
+#View(FedPapers_km)
 
-# Optimal number of clusters
+# Determine "Optimal" number of clusters
 fviz_nbclust(FederalistPapers, FUN=hcut,method = "wss")
-fviz_nbclust(FederalistPapers, FUN =hcut, method = "silhouette")
+#fviz_nbclust(FederalistPapers, FUN =hcut, method = "silhouette")
 
 # Set seed for fixed random seed
 set.seed(20)
@@ -70,7 +70,7 @@ Clusters$centers
 
 ```
 
-Next we will add the clustering results back to the dataframe and display the findings. 
+Next we will add the clustering results back to the dataframe and display the findings. We can attempt to identify if the clustering results intuitively group papers written by the same author into the same clusters.
 
 
 ```{r cluster_results}
@@ -83,7 +83,7 @@ clusplot(FedPapers_km, FedPapers_km$Clusters, color=TRUE, shade=TRUE, labels=0, 
 
 ggplot(data=FedPapers_km2, aes(x=author, fill=Clusters))+
   geom_bar(stat="count") +
-  labs(title = "K = 4") +
+  labs(title = "K = ?") +
   theme(plot.title = element_text(hjust=0.5), text=element_text(size=15))
 
 #---------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -115,16 +115,16 @@ distance5 <- dist(FedPapers_HAC, method = "binary")
 distance6 <- dist(FedPapers_HAC, method = "minkowski")
 ```
 
-Below we display the results of HAC.
+Below we display the results of HAC. The boxes indicate clusters.
 
 ```{r hac_plot}
 
-HAC <- hclust(distance6, method="complete")
+HAC <- hclust(distance3, method="complete")
 plot(HAC, cex=0.6, hang=-1)
 rect.hclust(HAC, k =4, border=2:5)
 
-HAC2 <- hclust(distance6, method="single")
+HAC2 <- hclust(distance, method="single")
 plot(HAC2, cex=0.6)
-rect.hclust(HAC, k =4, border=2:5)
+rect.hclust(HAC2, k =4, border=2:5)
 
 ```

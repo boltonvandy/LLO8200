@@ -77,7 +77,7 @@ Next we will set up the API and search for a particular hash tag. We will store 
 ##############  Using twittR ##########################################################
 setup_twitter_oauth(consumerKey,consumerSecret,access_Token,access_Secret)
 
-Search<-twitteR::searchTwitter("#Trump",n=100,since="2018-09-09")
+Search<-twitteR::searchTwitter("#Trump",n=90,since="2018-09-09")
 (Search_DF <- twListToDF(Search))
 TransactionTweetsFile = "Choc.csv"
 (Search_DF$text[1])
