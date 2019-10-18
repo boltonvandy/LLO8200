@@ -1,8 +1,8 @@
 ---
 title: "Association Rule Mining and Twitter"
 output:
-  html_document: default
   pdf_document: default
+  html_document: default
   word_document: default
 ---
 
@@ -10,7 +10,7 @@ output:
 
 To access a Twitter API you will need to set up an account and receive a consumerKey, the comsumerSecret, the access_Token, and the access_Secret. A popular library and API: "twitteR".
 
-```{r setup, include=FALSE}
+```{r setup}
 knitr::opts_chunk$set(echo = TRUE, warning=FALSE, results ='show',include=TRUE,messages=FALSE)
 
 ####### Twitter in R
@@ -62,25 +62,28 @@ library(plyr)
 library(dplyr)
 library(ggplot2)
 #install.packages("syuzhet")  ## sentiment analysis
-library(syuzhet)
+#library(syuzhet)
 library(stringr)
 #install.packages("arulesViz")
 library(arulesViz)
+library(semPlot)
+library(tm)
+library(wordcloud)
 
 ```
 
 # Collecting Tweets
 
-Next we will set up the API and search for a particular hash tag. We will store the tweets with the designated hash in a csv file for safe keeping. Here, we choose "#Trump" in hopes to get a 100 tweets easily. 
+Next we will set up the API and search for a particular hash tag. We will store the tweets with the designated hash in a csv file for safe keeping. Here, we choose "Trump" in hopes to get a 100 tweets easily. 
 
 ```{r tweets, include=TRUE}
 ##############  Using twittR ##########################################################
 setup_twitter_oauth(consumerKey,consumerSecret,access_Token,access_Secret)
 
-Search<-twitteR::searchTwitter("#Trump",n=90,since="2018-09-09")
-(Search_DF <- twListToDF(Search))
+Search<-twitteR::searchTwitter("nfl",n=90,since="2019-10-14")
+Search_DF <- twListToDF(Search)
 TransactionTweetsFile = "Choc.csv"
-(Search_DF$text[1])
+#Search_DF$text[1]
 
 
 ## Start the file
@@ -91,6 +94,7 @@ Tokens<-tokenizers::tokenize_words(Search_DF$text[1],stopwords = stopwords::stop
 ## Write squished tokens
 cat(unlist(str_squish(Tokens)), "\n", file=Trans, sep=",")
 close(Trans)
+tokenList = Tokens
 
 ## Append remaining lists of tokens into file
 ## Recall - a list of tokens is the set of words from a Tweet
@@ -99,8 +103,48 @@ for(i in 2:nrow(Search_DF)){
   Tokens<-tokenize_words(Search_DF$text[i],stopwords = stopwords::stopwords("en"), 
             lowercase = TRUE,  strip_punct = TRUE, simplify = TRUE)
   cat(unlist(str_squish(Tokens)), "\n", file=Trans, sep=",")
+  tokenList <- c(tokenList,  unlist(str_squish(Tokens)))
 }
 close(Trans)
+
+cor <- Corpus(VectorSource(tokenList))
+
+
+tdm <- TermDocumentMatrix(cor)
+m <- as.matrix(tdm)
+v <- sort(rowSums(m),decreasing=TRUE)
+d <- data.frame(word = names(v),freq=v)
+
+## NOTE:  d contains the words d$word AND frequencies d$freq
+
+wordcloud(d$word,d$freq, colors=c("red","green","blue","orange","black","purple", "seagreen") , random.color = TRUE, min.freq = 3)
+
+
+```
+
+```{r removeStopWords}
+
+tokenList[tokenList == "t.co"] <- ""
+tokenList[tokenList == "rt"] <- ""
+tokenList[tokenList == "http"] <- ""
+tokenList[tokenList == "https"] <- ""
+tokenList[tokenList == "sxrgihoe"] <- ""
+
+
+
+cor <- Corpus(VectorSource(tokenList))
+
+
+tdm <- TermDocumentMatrix(cor)
+m <- as.matrix(tdm)
+v <- sort(rowSums(m),decreasing=TRUE)
+d <- data.frame(word = names(v),freq=v)
+
+## NOTE:  d contains the words d$word AND frequencies d$freq
+
+wordcloud(d$word,d$freq, colors=c("red","green","blue","orange","black","purple", "seagreen") , random.color = TRUE, min.freq = 3)
+
+
 
 ```
 
@@ -118,15 +162,15 @@ TweetTrans <- read.transactions(TransactionTweetsFile,
                                 sep=","
                                 ## cols = 
                                 )
-inspect(TweetTrans)
+#inspect(TweetTrans)
 ## See the words that occur the most
-Sample_Trans <- sample(TweetTrans, 50)
-summary(Sample_Trans)
+Sample_Trans <- sample(TweetTrans, 20)
+#summary(Sample_Trans)
 
 ## Read the transactions data into a dataframe
 TweetDF <- read.csv(TransactionTweetsFile, header = FALSE, sep = ",")
 head(TweetDF)
-(str(TweetDF))
+#(str(TweetDF))
 
 
 ```
@@ -146,6 +190,7 @@ TweetDF[TweetDF == "t.co"] <- ""
 TweetDF[TweetDF == "rt"] <- ""
 TweetDF[TweetDF == "http"] <- ""
 TweetDF[TweetDF == "https"] <- ""
+TweetDF[TweetDF == "sxrgihoe"] <- ""
 
 ## Clean with grepl - every row in each column
 MyDF<-NULL
@@ -166,7 +211,7 @@ write.table(TweetDF, file = "UpdatedChocolate.csv", col.names = FALSE,
             row.names = FALSE, sep = ",")
 TweetTrans <- read.transactions("UpdatedChocolate.csv", sep =",", 
             format("basket"),  rm.duplicates = TRUE)
-inspect(TweetTrans)
+#inspect(TweetTrans)
 
 ```
 
@@ -179,14 +224,14 @@ Next we will apply the apriori algorithm to find the associations including comp
 # So that you do not have an enormous amount of rules, you can thresholds for
 # support, confidence and lift ... also minlength for the rules. 
 TweetTrans_rules = arules::apriori(TweetTrans, 
-            parameter = list(support=.025, confidence=.75, minlen=3))
-inspect(TweetTrans_rules[1:10])
+            parameter = list(support=0.05, confidence=.45, minlen=3))
+arules::inspect(head(TweetTrans_rules, 10))
 ## sorted
 SortedRules_conf <- sort(TweetTrans_rules, by="confidence", decreasing=TRUE)
-inspect(SortedRules_conf[1:20])
+arules::inspect(head(SortedRules_conf, 10))
 
 SortedRules_sup <- sort(TweetTrans_rules, by="support", decreasing=TRUE)
-inspect(SortedRules_sup[1:20])
+arules::inspect(head(SortedRules_sup, 10))
 ```
 
 # Displaying Results
@@ -194,8 +239,8 @@ inspect(SortedRules_sup[1:20])
 The results will be displayed as an interactive graph.
 
 ```{r graph, include=TRUE}
-plot (SortedRules_sup[1:50],method="graph",interactive=TRUE,shading="confidence") 
-plot (SortedRules_conf[1:50],method="graph",interactive=TRUE,shading="confidence") 
+plot (head(SortedRules_sup,n=10),method="graph",shading="confidence") 
+plot (head(SortedRules_conf, n=10),method="graph",shading="confidence") 
 
 ```
 
