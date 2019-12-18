@@ -1,0 +1,156 @@
+---
+title: "week 10 mod 8+9"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r}
+library(tidyverse)
+library(ModelMetrics)
+library(modelr)
+library(knitr)
+```
+
+## NB: you need to download this zip file to your working directory for the class
+```{r}
+#unzip("DontGetKicked.zip")
+```
+
+
+```{r}
+lemon<-read_csv("training.csv")
+```
+
+
+
+1. Calculate the proportion of lemons in the training dataset using the IsBadBuy variable. 
+```{r}
+lemon%>%summarise(mean(IsBadBuy))
+
+prop.table(table(lemon$IsBadBuy))
+```
+
+
+2. Calculate the proportion of lemons by Make. 
+```{r}
+prop.table(table(lemon$Make,lemon$IsBadBuy),margin = 1 )
+
+lemon%>%
+  group_by(Make)%>%
+  summarise(mean_lemon=mean(IsBadBuy))%>%
+  arrange(-mean_lemon)%>%
+  print(n=100)
+```
+
+
+3. Now, predict the probability of being a lemon using a linear model (`lm(y~x`), with covariates of your choosing from the training dataset. 
+
+4. Make predictions from the linear model.
+
+```{r}
+lin_mod<-lm(IsBadBuy~VehicleAge+VehBCost,data=lemon)
+
+lemon%>%add_predictions(lin_mod)->lemon
+
+# Hint -- lower threshold to improve predicted class distribution
+lemon%>%mutate(lin_mod_out=ifelse(pred>.25,1,0))->lemon
+```
+
+
+5 + 6. Now, predict the probability of being a lemon using a logistic regression.
+```{r}
+logit_mod<-glm(IsBadBuy~
+                VehicleAge+
+                 VehBCost,
+               data=lemon,
+               family=binomial(link="logit"))
+summary(logit_mod)
+
+lemon%>%
+  mutate(pred_logit=predict(logit_mod,type="response"))->lemon
+
+## Classifying 1s and 0s
+# Hint -- lower threshold to improve predicted class distribution
+
+lemon%>%mutate(pred_logit_out=ifelse(pred_logit>.25,1,0))->lemon
+
+```
+
+#Confusion Matrix
+7. Create confusion matrix and compare. 
+```{r}
+## Linear Model
+caret::confusionMatrix(data=as.factor(as.character(lemon$pred_logit_out)),
+                       reference=as.factor(as.character(lemon$IsBadBuy)),positive="1")
+
+ModelMetrics::recall(actual=lemon$IsBadBuy,predicted=lemon$lin_mod_out)
+ModelMetrics::tnr(actual=lemon$IsBadBuy,predicted=lemon$lin_mod_out)
+
+
+## Logit Model
+caret::confusionMatrix(data=as.factor(lemon$pred_logit_out),
+                       reference=as.factor(lemon$IsBadBuy),
+                       positive="1")
+
+
+ModelMetrics::recall(actual=lemon$IsBadBuy,predicted=lemon$pred_logit_out)
+ModelMetrics::tnr(actual=lemon$IsBadBuy,predicted=lemon$lin_mod_out)
+
+```
+
+8. Plot distribution of lemon by factors. 
+
+```{r}
+lemon_sum<-lemon%>%
+  group_by(Make)%>%
+  summarize(prob_badbuy=mean(IsBadBuy))%>%
+  arrange(-prob_badbuy)
+
+gg1<-ggplot(lemon_sum,aes(y=prob_badbuy,
+                          x=fct_reorder(.f=as.factor(Make),.x=prob_badbuy),
+                          fill=Make))
+
+
+gg1<-gg1+geom_bar(stat="identity",position="dodge")
+gg1<-gg1+xlab("Make")+ylab("Pr(BadBuy)")
+gg1<-gg1+theme(legend.title=element_blank(),legend.position = "none")
+gg1<-gg1+coord_flip()
+
+gg1<-gg1+geom_text(aes(label=round(prob_badbuy,2)),
+                   position=position_dodge(width=.9),
+                   vjust=-.25)
+gg1
+
+```
+
+
+9. Create a table that shows the probability of a car being a bad buy by make.
+
+```{r}
+kable(lemon_sum)
+```
+
+
+
+Bonus. Create a heatmap of the probability of a car being a bad buy by make and size. 
+```{r}
+
+lemon_sum<-lemon%>%
+  group_by(Make,Size)%>%
+  summarize(prob_badbuy=mean(IsBadBuy))%>%
+  arrange(-prob_badbuy)%>%
+  filter(prob_badbuy>0)
+
+gg<-ggplot(lemon_sum,
+           aes(x=as.factor(Make),
+               y=as.factor(Size),fill=prob_badbuy))
+gg<-gg+geom_tile()
+gg<-gg+scale_fill_gradient(low="black",high="gold")
+gg<-gg+xlab("Make")+ylab("Model")
+gg<-gg+theme(legend.title=element_blank())
+gg
+
+```
+
+

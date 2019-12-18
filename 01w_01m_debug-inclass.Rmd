@@ -1,0 +1,107 @@
+---
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+
+```{r}
+#install.packages('tidyverse') 
+library(tidyverse)
+```
+
+# Welcome to Data Science! 
+
+In this RMD file, we will go over the basic syntax of an RMD file, what to do when you encounter and error, and how to fix errors (bugs)!
+
+Before starting this exercise -- read over the Week 1 Readings from the course text and the 01-intro.rmd file. 
+
+## Introductions
+
+We need two basic sets of tools for this class. We will need `R` to analyze data. We will need `RStudio` to help us interface with R and to produce documentation of our results. 
+
+The following R-Chunks will have some errors, you will need to identify them and fix them!! First try running the code and reading the error messages. These messages will give you clues as to which lines are the offending lines with incorrect syntax. 
+
+## Exercise #1. Comments
+
+```{r question1}
+# The hash tag in an r-chunk denotes a comment (not executed!)
+This is not a comment and will cause an error -- fix by adding a hash tag
+
+```
+This text is outside of the r-chunk and is not executed. 
+
+## Exercise #2. Assignment Operator
+```{r question2}
+var_num1 <- 4
+var_num2 <-- 4
+var_num3 = 4
+var_num4 == 4
+
+# what is the value of these variables? Does that make sense? did you get an error?
+
+```
+
+
+
+## Exercise #1. Expressions
+
+```{r question2}
+# Note: r-chunks must have unique labels... eg "question2" is used twice!!
+
+sum_num1 <- 4 + var_num2
+sum_num2 <- var_num2 + var_num2
+var_num3 = 4 == var_num3
+
+
+# what is the value of these variables? Does that make sense? did you get an error?
+
+```
+
+
+## Exercise. Strings vs variable names
+
+```{r }
+sum_num1 <- "4"
+
+# What is 4 + 4 ?
+sum <- 4 + sum_num1
+
+
+# what is the value of these variables? what is a string?
+
+```
+
+
+## Exercise #1. dataframes
+
+
+```{r }
+# Create list of variable values
+
+studid <- c(1111111, 2222222, 3333333, 4444444)
+gpa <- c(4.0, 3.3, 3.7 2.7)
+gender <- c(male, "female", "female", "male")
+
+# create a data frame ... a matrix of data!
+frame <- data.frame( studid, gpa, gender)
+head(frame)
+
+print(frame)
+
+  
+
+```
+
+
+## Exercise #1. Pipe Operator
+```{r}
+
+print(frame$gpa)
+
+print(frame %>% select(gpa))
+
+```
+
+
+

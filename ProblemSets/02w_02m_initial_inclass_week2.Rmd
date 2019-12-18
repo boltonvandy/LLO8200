@@ -1,0 +1,51 @@
+---
+title: "In Class Work Session 2"
+author: "Will Doyle"
+date: "1/16/2019"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+# In class exercise. 
+
+Try the following ...
+
+## Load Libraries
+
+```{r}
+library(tidyverse)
+library(plotly)
+library(Metrics)
+```
+
+## Load Data
+
+```{r}
+load("pd.Rdata")
+```
+
+Try the following -- see comments below ... 
+
+```{r}
+
+##1. Compute quartiles of field "median_hh_inc" and store back into pd data frame with 
+## field name "median_hh_inc_level".
+
+
+
+##2. Compute the mean of field "homeown_rate" for each quartile of median_hh_inc_level
+## separately ... hint use group_by.
+
+
+##3. Add the result from 2 back into the data frame pd with name "pred_homeown_rate"
+
+
+
+```
+
+```{r}
+## 4. Compare predicted from actual using rmse homeown_rate vs pred_homeown_rate
+
+```
+
