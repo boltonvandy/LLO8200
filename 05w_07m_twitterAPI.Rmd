@@ -76,20 +76,26 @@ setup_twitter_oauth(consumerKey,consumerSecret,access_Token,access_Secret)
 # Below is the function that scours twitter for a particular hash tag.
 # n is the number of tweets to be collected
 
-Search<-twitteR::searchTwitter("#Trump",n=80,since="2019-09-10")
+Search<-twitteR::searchTwitter("SuperBowl",n=300,since="2020-01-30")
 Search_DF <- twListToDF(Search)
 
 # If you wish to store the tweets in a csv file ... 
 TransactionTweetsFile = "tweets.csv"
 head(Search_DF$text[1])
 
+## You may find that there are many "stopwords" to remove!!
+## These are useless words that may confound analyses.
+
+myStopWordList = c("https", "t.co")
+
 
 ## Start the file
 Trans <- file(TransactionTweetsFile)
 ## Tokenize tweets into a list of words 
-Tokens<-tokenizers::tokenize_words(Search_DF$text[1],stopwords = stopwords::stopwords("en"), 
+Tokens<-tokenizers::tokenize_words(Search_DF$text[1],stopwords = append(stopwords::stopwords("en"),myStopWordList), 
           lowercase = TRUE,  strip_punct = TRUE, strip_numeric = TRUE,simplify = TRUE)
 ## Write squished tokens
+Tokens["https"]<-""
 cat(unlist(str_squish(Tokens)), "\n", file=Trans, sep=",")
 close(Trans)
 
@@ -98,8 +104,9 @@ close(Trans)
 Trans <- file(TransactionTweetsFile, open = "a")
 tokenList = Tokens
 for(i in 2:nrow(Search_DF)){
-  Tokens<-tokenize_words(Search_DF$text[i],stopwords = stopwords::stopwords("en"), 
+  Tokens<-tokenize_words(Search_DF$text[i],stopwords = append(stopwords::stopwords("en"),myStopWordList),  
             lowercase = TRUE,  strip_punct = TRUE, simplify = TRUE)
+  Tokens["https"]<-""
   cat(unlist(str_squish(Tokens)), "\n", file=Trans, sep=",")
   tokenList <- c(tokenList,  unlist(str_squish(Tokens)))
 }
@@ -122,7 +129,7 @@ d <- data.frame(word = names(v),freq=v)
 
 ## NOTE:  d contains the words d$word AND frequencies d$freq
 
-wordcloud(d$word,d$freq, colors=c("red","green","blue","orange","black","purple", "seagreen") , random.color = TRUE, min.freq = 3)
+wordcloud(d$word,d$freq, colors=c("red","green","blue","orange","black","purple", "seagreen") , random.color = TRUE, min.freq = 10)
 
 
 ```
