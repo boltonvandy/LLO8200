@@ -1,10 +1,16 @@
 ---
 title: "What Predicts Family Spending on Groceries?"
 output:
-  html_document: default
-  pdf_document: default
-  word_document: default
+  ioslides_presentation: default
+  beamer_presentation:
+    colortheme: dolphin
+    fonttheme: structurebold
+    theme: AnnArbor
 ---
+
+
+
+
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning=FALSE, results ='hide',include=TRUE,messages=FALSE)
@@ -38,7 +44,7 @@ cex<-cex%>%mutate(childage=fct_recode(.f=as.factor(childage),
 
 
 cex<-cex%>%filter(is.na(grocery_food)==FALSE)
-cex<-cex%>%filter(is.na(inc_rank)=FALSE)
+cex<-cex%>%filter(is.na(inc_rank)==FALSE)
 cex<-cex%>%filter(is.na(childage)==FALSE)
 
 ```
@@ -60,7 +66,7 @@ The figure below shows the distribution of family spending on groceries.
 
 ### Spending on Groceries
 ```{r density_plot,results="asis"}
-gg<-ggplot(data=ce,aes(x=grocery_food,color=grocery_fd))
+gg<-ggplot(data=cex,aes(x=grocery_food,color=grocery_fd))
 gg<-gg+geom_freqpoly(binwidth=200,color="blue")
 gg<-gg+xlab("Spending on Food Groceries")+ylab("Density")
 gg
@@ -102,7 +108,7 @@ cex_sum<-cex_sum%>%mutate(fam_income_level=as.factor(as.character(fam_income_lev
 
 gg<-ggplot(cex_sum,aes(x=fct_reorder(.f=as.factor(fam_income_level),groc_fam),y=groc_fam,fill=fam_income_level))
 
-gg<-gg1+geom_bar(stat="identity")
+gg<-gg+geom_bar(stat="identity")
 
 gg<-gg+xlab("Family Income Level")+ylab("Spending on Groceries")+scale_fill_discrete(name="Family Income Quartile")
 ##Print
@@ -195,7 +201,7 @@ my.breaks=c(0,100,500,1000,5000,10000,20000)
 gg<-gg+scale_y_continuous(trans="log",breaks=my.breaks)
 gg<-gg+geom_smooth(method="lm")
 gg<-gg+facet_wrap(~childage)
-gg<-gg theme(strip.text.x = element_text(size = 6)) 
+gg<-gg+theme(strip.text.x = element_text(size = 6)) 
 gg<-gg+guides(color=FALSE)
 gg<-gg+xlab("Family Income Level")+ylab("Spending on Groceries")
 gg

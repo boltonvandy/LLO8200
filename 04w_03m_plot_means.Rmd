@@ -192,7 +192,7 @@ What if we want to change colors? This is a little tricky for most people at fir
 ```{r}
 
 ## Changing Colors
-mypal<-c("lightblue","orange")
+mypal<-c("cornflowerblue","gold")
 
 gg<-gg+scale_fill_manual(values =mypal )
 
@@ -205,7 +205,7 @@ You can also use `RColorBrewer` which has a wide variety of palettes already bui
 
 ```{r}
 ## Another way, using color brewer palettes: 
-gg<-gg+scale_fill_brewer(palette = "Set1")
+gg<-gg+scale_fill_brewer(palette = "Set2")
 
 gg
 

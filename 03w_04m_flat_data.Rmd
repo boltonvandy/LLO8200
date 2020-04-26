@@ -8,7 +8,7 @@ output:
 Flat data is data that is arranged with one case per row, with one column per variable-- more or less. It's stored in a variety of formats, with different conventions. Our goal is to get it into the most useful format for analysis: what's known as tidy data. 
 
 ```{r} 
-library(gdata)  #gdata is finicky ... you may need to install it, but not load it.
+#library(gdata)  #gdata is finicky ... you may need to install it, but not load it.
 library(tidyverse)
 library(haven)
 library(readxl)
@@ -130,9 +130,9 @@ In most work settings you'll work with excel files. To get these into shape you'
 
 if(file.exists("free.xls")==FALSE){
   download.file("http://nces.ed.gov/programs/digest/d14/tables/xls/tabn204.10.xls",destfile="free.xls")
-free<-read_excel("free.xls",skip=4,col_names=FALSE)  
+free<-read_excel("C:/Users/jerem/Google Drive/Online/Vandy/llo8200repo/free.xls",skip=4,col_names=FALSE)  
 }else{
-  free<-read_excel("free.xls",skip=4,col_names=FALSE)
+  free<-read_excel("C:/Users/jerem/Google Drive/Online/Vandy/llo8200repo/free.xls",skip=4,col_names=FALSE)
 }
 
 head(free)
@@ -186,7 +186,7 @@ free2<-free2[2:52,]
 
 head(free2)
 
-tail(free2)
+#tail(free2)
 ```
 
 Okay, this is looking better. Let's add some nice column names. 

@@ -63,7 +63,7 @@ I'm going to run the `cclust` command twice, specifying that it should use 4 clu
 
 ```{r}
 # Cluster analysis
-c1 <- cclust(sfo, k = 4, dist = "manhattan")
+c1 <- cclust(sfo, k = 4, dist = "euclidean")
 c1
 
 ## And again, see if results are stable
@@ -83,7 +83,7 @@ plot(c1a)
 densityplot(c1a)
 ```
 
-With two groups, the cluster locations are pretty stable. At 3 they spread out. With 4 and five there appear to be some relatively steady points, but still it's pretty spread out. 
+With two groups, the cluster locations are pretty stable. The Rand Indices are a measure of similarity of points within the same cluster (like a withinness measure). The higher the rand index, the more similar. At 3 they spread out. With 4 and five there appear to be some relatively steady points, but still it's pretty spread out. 
 
 Okay, so that's no good. What to do? Well, one thing to do is to apply this to a dataset with clearer groups. But, we're going to plow on regardless. If we really want to find stable groupings, we need to find a way to converge on a stable classification into groups. 
 

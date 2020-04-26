@@ -122,10 +122,10 @@ Below we display the results of HAC. The boxes indicate clusters.
 
 HAC <- hclust(distance, method="complete")
 plot(HAC, cex=0.6, hang=-1)
-rect.hclust(HAC, k =4, border=2:5)
+rect.hclust(HAC, k =2, border=2:5)
 
-HAC2 <- hclust(distance, method="single")
-plot(HAC2, cex=0.6)
-rect.hclust(HAC2, k =4, border=2:5)
+HAC2 <- hclust(distance3, method="complete")
+plot(HAC2, cex=0.6, hang=-1)
+rect.hclust(HAC2, k =5, border=2:5)
 
 ```

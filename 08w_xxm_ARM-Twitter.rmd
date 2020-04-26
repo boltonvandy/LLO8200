@@ -80,7 +80,7 @@ Next we will set up the API and search for a particular hash tag. We will store 
 ##############  Using twittR ##########################################################
 setup_twitter_oauth(consumerKey,consumerSecret,access_Token,access_Secret)
 
-Search<-twitteR::searchTwitter("nfl",n=90,since="2019-10-14")
+Search<-twitteR::searchTwitter("delegates",n=900,since="2020-03-02")
 Search_DF <- twListToDF(Search)
 TransactionTweetsFile = "Choc.csv"
 #Search_DF$text[1]
@@ -117,7 +117,7 @@ d <- data.frame(word = names(v),freq=v)
 
 ## NOTE:  d contains the words d$word AND frequencies d$freq
 
-wordcloud(d$word,d$freq, colors=c("red","green","blue","orange","black","purple", "seagreen") , random.color = TRUE, min.freq = 3)
+wordcloud(d$word,d$freq, colors=c("red","green","blue","orange","black","purple", "seagreen") , random.color = TRUE, min.freq = 50)
 
 
 ```
@@ -142,7 +142,7 @@ d <- data.frame(word = names(v),freq=v)
 
 ## NOTE:  d contains the words d$word AND frequencies d$freq
 
-wordcloud(d$word,d$freq, colors=c("red","green","blue","orange","black","purple", "seagreen") , random.color = TRUE, min.freq = 3)
+wordcloud(d$word,d$freq, colors=c("red","green","blue","orange","black","purple", "seagreen") , random.color = TRUE, min.freq = 90)
 
 
 
@@ -224,14 +224,14 @@ Next we will apply the apriori algorithm to find the associations including comp
 # So that you do not have an enormous amount of rules, you can thresholds for
 # support, confidence and lift ... also minlength for the rules. 
 TweetTrans_rules = arules::apriori(TweetTrans, 
-            parameter = list(support=0.05, confidence=.45, minlen=3))
+            parameter = list(support=0.006, confidence=.05, minlen=3))
 arules::inspect(head(TweetTrans_rules, 10))
 ## sorted
 SortedRules_conf <- sort(TweetTrans_rules, by="confidence", decreasing=TRUE)
-arules::inspect(head(SortedRules_conf, 10))
+arules::inspect(head(SortedRules_conf, 40))
 
 SortedRules_sup <- sort(TweetTrans_rules, by="support", decreasing=TRUE)
-arules::inspect(head(SortedRules_sup, 10))
+arules::inspect(head(SortedRules_sup, 30))
 ```
 
 # Displaying Results
@@ -239,8 +239,8 @@ arules::inspect(head(SortedRules_sup, 10))
 The results will be displayed as an interactive graph.
 
 ```{r graph, include=TRUE}
-plot (head(SortedRules_sup,n=10),method="graph",shading="confidence") 
-plot (head(SortedRules_conf, n=10),method="graph",shading="confidence") 
+plot (head(SortedRules_sup,n=4),method="graph",shading="confidence") 
+plot (head(SortedRules_conf, n=4),method="graph", shading="confidence") 
 
 ```
 

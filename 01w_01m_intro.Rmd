@@ -59,6 +59,7 @@ To run the code below in R, you can:
 
 # This section prints the number 4
 ```{r}
+setwd("C:/Users/jerem/Google Drive/Online/Vandy/llo8200repo")
 2+2
 ```
 
@@ -78,7 +79,11 @@ However, we first need to make sure that R is looking in the right place. When y
 
 ```{r load_data}
 ## Load in the data
-load("college.Rdata")
+#load("college.Rdata")
+#load("C:/Users/jerem/Google Drive/Online/Vandy/llo8200repo/college.Rdata")
+load("C:/Users/jerem/Google Drive/Online/Vandy/llo8200repo/college.Rdata")
+#load("C:/Users/jerem/Google Drive/Online/Vandy/llo8200repo/college.Rdata")
+
 ```
 
 Here are the variables in the `college.Rdata` dataset:
@@ -117,7 +122,7 @@ sc
 
 ## This is commented as you might not always want to run it. Delete the "#" sign below in order to run the command. 
 
-View(sc)
+#View(sc)
 ```
 
 *Filter, Select, Arrange*

@@ -76,7 +76,7 @@ setup_twitter_oauth(consumerKey,consumerSecret,access_Token,access_Secret)
 # Below is the function that scours twitter for a particular hash tag.
 # n is the number of tweets to be collected
 
-Search<-twitteR::searchTwitter("SuperBowl",n=300,since="2020-01-30")
+Search<-twitteR::searchTwitter("mardi gras",n=300,since="2020-01-30")
 Search_DF <- twListToDF(Search)
 
 # If you wish to store the tweets in a csv file ... 

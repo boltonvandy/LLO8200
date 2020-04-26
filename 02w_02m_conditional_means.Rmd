@@ -2,7 +2,7 @@
 title: "Conditional Means"
 output:
   pdf_document: default
-  html_document: default
+ 
 ---
 
 # Analyzing Data: Conditional Means
@@ -16,8 +16,9 @@ We'll go through the following steps:
 3. Computing and plotting conditional means using multiple predictors. 
 
 
+
 ```{r  include=TRUE, warning=TRUE}
-library(knitr)
+#library(knitr)
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(plotly)
@@ -29,7 +30,9 @@ library(Metrics)
 We will be working with a dataset put together by the Census Bureau that summarizes the characteristics of the 3,088 counties in the United States. 
 
 ```{r data}
-load("pd.Rdata")
+library(tidyverse)
+#load("pd.Rdata") #relative path
+load("C:/Users/jerem/Google Drive/Online/Vandy/llo8200repo/pd.Rdata")
 ```
 
 ```{r }
@@ -127,7 +130,7 @@ $$\hat{Y}=\bar{Y} $$
 
 What this says is our predicted income $\hat{Y}$ is equal to average income $\bar{Y}$ We'll always use $Y$ as the notation for a dependent variable and $X$ as the notation for an independent variable. 
 
-```{r}
+```{r }
 
 ##Unconditional Average
 pd%>%summarize(mean_percapinc.2010=mean(percapinc.2010,na.rm=TRUE))
