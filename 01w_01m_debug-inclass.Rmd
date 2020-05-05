@@ -5,7 +5,7 @@ output:
   word_document: default
 ---
 
-```{r}
+```{r warning=FALSE}
 #install.packages('tidyverse') 
 library(tidyverse)
 ```
@@ -22,7 +22,7 @@ We need two basic sets of tools for this class. We will need `R` to analyze data
 
 The following R-Chunks will have some errors, you will need to identify them and fix them!! First try running the code and reading the error messages. These messages will give you clues as to which lines are the offending lines with incorrect syntax. 
 
-## Exercise #1. Comments
+# Exercise #1. Comments
 
 ```{r question1}
 # The hash tag in an r-chunk denotes a comment (not executed!)
@@ -36,7 +36,7 @@ This text is outside of the r-chunk and is not executed.
 var_num1 <- 4
 var_num2 <-- 4
 var_num3 = 4
-var_num4 == 4
+var_num3 == 4
 
 # what is the value of these variables? Does that make sense? did you get an error?
 
@@ -46,12 +46,12 @@ var_num4 == 4
 
 ## Exercise #1. Expressions
 
-```{r question2}
+```{r }
 # Note: r-chunks must have unique labels... eg "question2" is used twice!!
 
 sum_num1 <- 4 + var_num2
 sum_num2 <- var_num2 + var_num2
-var_num3 = 4 == var_num3
+var_num3 = (4 == var_num3)
 
 
 # what is the value of these variables? Does that make sense? did you get an error?
@@ -80,8 +80,8 @@ sum <- 4 + sum_num1
 # Create list of variable values
 
 studid <- c(1111111, 2222222, 3333333, 4444444)
-gpa <- c(4.0, 3.3, 3.7 2.7)
-gender <- c(male, "female", "female", "male")
+gpa <- c(4.0, 3.3, 3.7, 2.7)
+gender <- c("male", "female", "female", "male")
 
 # create a data frame ... a matrix of data!
 frame <- data.frame( studid, gpa, gender)
