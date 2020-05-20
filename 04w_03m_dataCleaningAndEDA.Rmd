@@ -1,0 +1,605 @@
+---
+title: "Data Cleaning Example"
+author: "jb"
+date: "5/20/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+###############################
+##
+## Data Visualization 
+##
+## Example 1: The Data Science
+##             Life Cycle - 
+##             Visually for RECORD DATA
+##             with smaller dimensionality.
+##
+## Methods: cleaning, EDA, ML
+##
+## Gates
+##
+## Great reference:
+## http://r-statistics.co/Top50-Ggplot2-Visualizations-MasterList-R-Code.html
+##
+
+## ASK YOURSELF THIS QUESTION:
+## 
+## Can you answer a question with a vis?
+```
+
+# Intro
+
+Lets start this exercise with loading some student admissions data. This is a simple example where we will explore our data -- no other real goal.
+
+```{r}
+library(ggplot2)
+##
+## DATA SET
+##
+##
+##
+Myfile="SummerStudentAdmissions3_.csv"
+## USE YOUR OWN PATH AS NEEDED
+MyData <- read.csv(Myfile)
+```
+
+# Data Acquisition and Data Cleaning
+
+After loading the data, its a good idea to view it to confirm that the data loaded correctly. Try using commands "View", "str" or "head".
+
+```{r }
+############################################
+## Part 1: Cleaning the data
+##         using data vis - ggplot
+##
+##         EDA is Exploratory Data ANalysis
+##             Clean and explore...
+################################################
+
+## LOOK AT Each Variable.
+str(MyData)
+## Notice that there are 9 variables
+
+## Variable (also called features, attributes, columns) Name
+(MyVarNames<-names(MyData))
+MyVarNames[1]
+MyData[MyVarNames[1]]
+
+(NumColumns <-ncol(MyData))
+
+View(MyData)
+
+```
+
+Note that the "label" is the first column in the data frame. This is standard in R. The label is the class or classification of the data (often the dependent variable). Thus not considered part of the data, but rather the label. This variable should be of type factor, so lets confirm.
+
+```{r}
+##############################
+## Column 1: Decision
+###################################
+
+## THis is NOT part of the data!
+## It is the LABEL of the data.
+
+## Dataset labels should be of type factor
+str(MyData$Decision)
+
+## VISUALIZE to SEE what/where the errors are
+theme_set(theme_classic())
+MyBasePlot1 <- ggplot(MyData)
+(MyBasePlot1<-MyBasePlot1 + 
+    geom_bar(aes(MyData$Decision, fill = MyData$Decision)) + 
+    ggtitle("Decision Label"))
+
+```
+
+## Uncovering Issues
+
+OK - We have problems. Upon inspection of this one column ... 
+ - 1) We have a blank level - likely from a missing value. 
+ - 2) We have a label called banana - whichis wrong.??!?
+
+## Fixing Issues 
+
+Let's fix these. To fix factor data, first convert it to char. Lets remove "invalid rows", and confirm via inspection. 
+```{r}
+nrow(MyData)
+MyData$Decision <- as.character(MyData$Decision)
+
+## Keep only rows that are  "Admit", "Decline", or "Waitlist"
+
+MyData <- MyData[(MyData$Decision == "Admit" | 
+                    MyData$Decision == "Decline" | 
+                    MyData$Decision == "Waitlist"),]
+
+nrow(MyData)
+## Check it again
+
+(MyPlot1<-ggplot(MyData, aes(x=Decision, fill=Decision)) + 
+    geom_bar()+
+    geom_text(stat='count',aes(label=..count..),vjust=2)+
+    ggtitle("Student Dataset Labels"))
+```
+
+## More Cleaning ....
+
+Success! Now we can see (and show others) that theLabel in the dataset it clean and balanced. NOTE that we have color, a title, an x-axis label and labeled bars. We also have a legend.
+
+We are not done!! We need to change Decision back to a factor and inspect the other variables.
+```{r}
+(str(MyData$Decision))
+## This needs to be changed to type: factor
+MyData$Decision<-as.factor(MyData$Decision)
+## Check it
+table(MyData$Decision)
+str(MyData$Decision)
+## Good! We now have factor data with 3 levels.
+```
+
+Lets look at Gender next! This is a qualitative variable, lets visualize using a pie chart.
+
+```{r}
+#################################################
+## THe  next variable to look at is Gender
+## Like Decision, Gender is also qualitative.
+## Let's use a pie to look at it...
+#################################################
+
+str(MyData$Gender)
+NumRows=nrow(MyData)
+(TempTable <- table(MyData$Gender))
+(MyLabels <- paste(names(TempTable), ":", 
+                   round(TempTable/NumRows,2) ,sep=""))
+pie(TempTable, labels = MyLabels,
+    main="Pie Chart of Gender") 
+
+#install.packages("plotrix")
+library(plotrix) # Cool 3-d plot here!!
+pie3D(TempTable,labels=MyLabels,explode=0.3,
+      main="Pie Chart of Gender ")
+
+
+table(MyData$Gender)
+
+```
+
+Houston ... We have one problem! We have a blank or NA in the data ... but how to fix this? Lets use "is.na" 
+
+```{r}
+(sum(is.na(MyData$Gender)))  ## This confirms that it is not NA
+```
+Interesting ... our mystery value is not an "NA" ... what is it??
+
+```{r}
+## Let's look at str
+str(MyData$Gender)
+## This shows that we have blank and not NA....
+## FIX - change to char, correct, change back to factor
+## Keep track of what you are removing from the dataset
+```
+
+Its a "blank". Lets get rid of this row.
+
+```{r}
+ 
+nrow(MyData)
+MyData$Gender <- as.character(MyData$Gender)
+## Keep only rows that are Male or Female
+
+MyData <- MyData[(MyData$Gender == "Male" | 
+                    MyData$Gender == "Female") ,]
+nrow(MyData)
+## Turn back to factor
+MyData$Gender<- as.factor(MyData$Gender)
+str(MyData$Gender)
+table(MyData$Gender)
+
+```
+
+Lets recreate our Data Viz to confirm!
+
+```{r}
+
+(TempTable <- table(MyData$Gender))
+(MyLabels <- paste(names(TempTable), ":", 
+                   round(TempTable/NumRows,2) ,sep=""))
+pie(TempTable, labels = MyLabels,
+    main="Pie Chart of Gender") 
+```
+
+Lets inspect and clean the remaining variables. 
+
+```{r}
+############################################
+## Next variable is: DateSub
+#############################################
+#names(MyData)
+## Check format
+str(MyData$DateSub)  ## It is incorrect.
+## Check for NAs
+(sum(is.na(MyData$DateSub)))
+## Check the table
+table(MyData$DateSub)
+## The dates look ok - but the format is wrong and 
+## needs to be DATE
+(MyData$DateSub <- as.Date(MyData$DateSub, "%m/%d/%Y") )
+str(MyData$DateSub)
+
+## NOw that we have dates, can visualize them with 
+## a time series vis option. 
+
+ggplot(data = MyData, aes(x = DateSub, y = GPA))+
+  geom_line(color = "#00AFBB", size = 2)
+
+```
+GPA ... above 4.0 .... ?
+
+```{r}
+## We have a problem!
+## The GPA should never be above 4.0. 
+
+ggplot(MyData, aes(x = DateSub, y = GPA)) + 
+  geom_area(aes(color = Gender, fill = Gender), 
+            alpha = 0.5, position = position_dodge(0.8)) +
+  scale_color_manual(values = c("#00AFBB", "#E7B800")) +
+  scale_fill_manual(values = c("#00AFBB", "#E7B800"))
+
+## We can already SEE many things. 
+## We can see that Males applied a bit early and a bit later.
+## We can see that we have an error in at least one GPA
+## value that we will need to fix. 
+## We can see that Female and Male application times and GPAs
+## do not appear sig diff - but we can investigate this further.
+
+```
+#####################################################
+##
+##         Let's look at GPA and then dates with it
+####################################################
+
+```{r}
+str(MyData$GPA)  
+MyData$GPA<-as.numeric(MyData$GPA)
+table(MyData$GPA)
+
+## Are there NAs?
+(sum(is.na(MyData$GPA)))
+
+## Fix the missing GPA first
+## Find it
+(MissingGPA <- MyData[is.na(MyData$GPA),])
+## OK - its a Female/Admit. We can replace the missing GPA
+## with the median of all Female Admits.
+(Temp<-MyData[MyData$Decision=="Admit" & MyData$Gender=="Female",])
+## The median for Female Admits is:
+(MyMed<-median(Temp$GPA, na.rm=TRUE))
+## NOW - replace the missing GPA with this Median
+MyData$GPA[is.na(MyData$GPA)] <- MyMed
+## Check to assure the missing value  was updated...
+(sum(is.na(MyData$GPA)))
+
+table(MyData$GPA)
+
+```
+
+Well -- the dilema faced by data scientists everywhere ... what to do with missing data?!? Its common to either remove the row (as we have done previously); or we can try to replace the value with an estimate -- like the mean or median estimate. 
+
+```{r}
+
+library(plyr)
+
+## Create a table using the dataset
+## This table is BY Gender
+## The method is summarize
+## A new column is med and is the median for GPA
+(TEMPmeds <- ddply(MyData, .(Gender), summarize, 
+                   med = median(GPA)))
+
+```
+
+```{r}
+## Next, we have an incorrect value....let's SEE IT
+
+(MyV1 <- ggplot(MyData, aes(x=Gender, y=GPA, fill=Gender)) + 
+    geom_violin(trim=TRUE)+ geom_boxplot(width=0.1)+
+    geom_text(data = TEMPmeds, 
+              aes(x = Gender, y = med, label = med), 
+              size = 3, vjust = -1.5,hjust=-1)+
+    ggtitle("GPA and Gender")+
+    geom_jitter(shape=16, position=position_jitter(0.2)))
+
+
+
+## Now we can SEE the issue. There is at least one GPA
+## that is out of range. Let's fix this.
+## Let's replace the missing GPA by finding the median
+## for the ADMITS in that Gender group
+
+## FIND the row with GPA > 4
+(WrongGPAs <- MyData[(MyData$GPA<0 | MyData$GPA >4),])
+## 
+## We have Male Admit with a GPA of 6.
+
+## Fix it by using Male Admit GPA Median
+(Temp<-MyData[MyData$Decision=="Admit" & MyData$Gender=="Male",])
+## The median for Male Admits is:
+(MyMed<-median(Temp$GPA, na.rm=TRUE))
+## NOW - replace the missing GPA with this Median
+MyData$GPA[MyData$GPA>4] <- MyMed
+
+## NOW VISUALIZAE IT AGAIN:
+(TEMPmeds <- ddply(MyData, .(Gender), summarize, 
+                   med = round(median(GPA),2)))
+
+```
+Fix it!!
+
+```{r}
+
+(MyV1 <- ggplot(MyData, aes(x=Gender, y=GPA, fill=Gender)) + 
+    geom_violin(trim=TRUE)+ geom_boxplot(width=0.1)+
+    geom_text(data = TEMPmeds, 
+              aes(x = Gender, y = med, label = med), 
+              size = 4, vjust = -2.5,hjust=-1.8)+
+    ggtitle("GPA and Gender")+
+    geom_jitter(shape=16, position=position_jitter(0.2)))
+
+## That's better!
+
+table(MyData$GPA)
+## LOOKS GOOD!
+
+```
+
+State is next
+
+```{r}
+
+#############################################
+##
+##            Let's look at State next
+############################################
+#names(MyData)
+str(MyData$State)
+## Let's use a BAR to look
+BaseGraph <- ggplot(MyData)
+(MyG3<-BaseGraph + 
+    geom_bar(aes(State, fill = Gender), position="dodge")+
+    ggtitle("States and Gender"))
+
+## UGLY!!
+
+```
+
+This graph is not very aethestically pleasing ... lets clean it up using "theme"s.
+
+```{r}
+
+## Let's make this nicer so we can READ THE X AXIS
+(MyG3<-BaseGraph + 
+    geom_bar(aes(State, fill = Gender), position="dodge")+
+    ggtitle("States and Gender")+
+    theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5)))
+
+## MUCH BETTER!
+
+```
+
+Now we can SEE that we have problems :( First, we have poor balance. It might be needed to collect all the lower count states, such as ALabama, Mississippi, etc. into a group called OTHER. However, we will not do this here. If you want to see how - look at this other tutorial http://drgates.georgetown.domains/SummerClassificationRMarkdown.html
+
+Also - We have two Virginias (really!?!)  - we need to combine them:
+```{r}
+MyData$State[MyData$State == "virginia"] <- "Virginia"
+table(MyData$State)
+
+## Now - we need to remove the level of virginia
+MyData$State<-as.character(MyData$State)
+table(MyData$State)
+MyData$State<-as.factor(MyData$State)
+str(MyData$State)
+```
+
+and confirm
+
+```{r}
+## Check it
+(MyG4<-ggplot(MyData) + 
+    geom_bar(aes(State, fill = Gender), position="stack")+
+    ggtitle("States and Gender")+
+    theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5)))
+```
+
+Next: WorkExp
+
+```{r}
+
+## Even better!
+
+#########################################
+##
+## Now let's look at WorkExp
+#######################################
+#names(MyData)
+(sum(is.na(MyData$WorkExp)))
+str(MyData$WorkExp)
+
+## Let's look
+theme_set(theme_classic())
+
+# Histogram on a Continuous (Numeric) Variable
+(MyS3 <- ggplot(MyData,aes(x=WorkExp, y=GPA, color=Decision)) + 
+    geom_point() + 
+    scale_color_manual(values = c('blue',"red", "green")))
+
+## This helps in many ways. We can see that we have no outliers
+## or odd values. 
+```
+
+However, let's check it with a box plot as well. 
+
+```{r}
+
+(MyL1<-ggplot(MyData, aes(x=Decision, y=WorkExp))+
+    geom_boxplot()+
+    geom_jitter(position=position_jitter(.01), aes(color=Gender))+
+    ggtitle("Work Experience, Admissions, and Gender"))
+```
+
+This looks good and it also starts to tell us that people were not penalized or prefered based on work experience.
+
+Lets move on to TestScore and WritingScore.
+
+```{r}
+
+#####################################################
+##
+##          Let's look at TestScore and Writing Score
+##      
+#######################################################
+(sum(is.na(MyData$TestScore)))
+(sum(is.na(MyData$WritingScore)))
+
+str(MyData)
+
+## Box plots are great to look for odd values
+
+(MyL2<-ggplot(MyData, aes(x=Decision, y=TestScore))+
+    geom_boxplot()+
+    geom_jitter(position=position_jitter(.01), aes(color=Gender))+
+    ggtitle("Test Score, Admissions, and Gender"))
+
+```
+
+Interesting!! This mostly makes sense except for the 800 in the Admit group. However, it is not an outlier - it is just interesting.
+
+```{r}
+
+(MyL3<-ggplot(MyData, aes(x=Decision, y=WritingScore))+
+    geom_boxplot()+
+    geom_jitter(position=position_jitter(.01), aes(color=Gender))+
+    ggtitle("Writing Score, Admissions, and Gender"))
+
+
+
+```
+Hmmm - most of this looks OK, BUT, we have some very strangevalues for the Admit group.  Let's look at these:
+
+```{r}
+
+(Temp <- subset(MyData, Decision=="Admit", 
+                select=c(Decision,WritingScore)) )
+table(Temp$WritingScore)
+```
+
+OK - we can see that two score seem incorrect. The 1 and the 11, for an Admit, it not likely. Let's replace them with median
+
+```{r}
+
+(Temp3<-MyData[MyData$Decision=="Admit",])
+## The median for Admits is:
+(MyMed2<-median(Temp3$WritingScore, na.rm=TRUE))
+## NOW - replace the incorrect  with this Median
+MyData$WritingScore[MyData$WritingScore<85] <- MyMed2
+
+
+## check again
+(MyL4<-ggplot(MyData, aes(x=Decision, y=WritingScore))+
+    geom_boxplot()+
+    geom_jitter(position=position_jitter(.01), aes(color=Gender))+
+    ggtitle("Writing Score, Admissions, and Gender"))
+```
+
+MUCH BETTER! We can also look using density area plots...
+
+```{r}
+
+# Use semi-transparent fill
+(MyPlot4<-ggplot(MyData, aes(x=WritingScore, fill=Decision)) +
+    geom_area(stat ="bin", binwidth=2, alpha=0.5) +
+    theme_classic())
+
+## Here - using density - we can get a deeper look
+MyPlot5 <- ggplot(MyData, aes(WritingScore))
+MyPlot5 + geom_density(aes(fill=factor(Decision)), alpha=0.5) + 
+  labs(title="Density plot", 
+       subtitle="Decisions Based on Writing Scores")
+```
+
+# EDA
+
+Let investigate some of these variables for associations with our dependent variable -- EDA. Remember our goal is to leverage this data for prediction, decision-making, etc.
+
+Does it seem like WritingScore is really related to Admissions?
+
+```{r}
+
+## Let's run an ANOVA test to see
+MyANOVA_WS_Adm <- aov(WritingScore ~ Decision, data = MyData)
+# Summary of the analysis
+summary(MyANOVA_WS_Adm)  ## The test IS significant!
+plot(MyANOVA_WS_Adm, 1)
+## The above shows we can assume the homogeneity of variances.
+plot(MyANOVA_WS_Adm, 2) ## Close to normal
+
+```
+
+
+```{r}
+library("ggpubr")
+ggboxplot(MyData, x = "Decision", y = "WritingScore", 
+          color = "Decision", palette = c("#00AFBB", "#E7B800","green"),
+          ylab = "WritingScore", xlab = "Decision")
+
+
+## Let's add labels...
+
+(TheMean <- ddply(MyData, .(Decision), summarize, 
+                  mean2 = round(  mean(WritingScore) ,2 )))
+```
+
+
+
+```{r}
+## Another View...
+
+(MyV2 <- ggplot(MyData, aes(x=Decision, y=WritingScore, fill=Decision)) + 
+    geom_violin(trim=TRUE)+ geom_boxplot(width=0.1)+
+    geom_text(data = TheMean, 
+              aes(x = Decision, y = mean2, label = mean2), 
+              size = 3, vjust = -1.5,hjust=-1)+
+    ggtitle("Writing Score and Admissions Decision")+
+    geom_jitter(shape=16, position=position_jitter(0.2)))
+
+```
+
+And lastly ... VolunteerLevel
+
+```{r}
+
+###########################################
+##  The last variable is VolunteerLevel
+##  
+##############################################
+str(MyData$VolunteerLevel)
+## This should NOT be an int
+## COrrect it to factor
+MyData$VolunteerLevel <- as.factor(MyData$VolunteerLevel)
+table(MyData$VolunteerLevel)
+
+(MyG1<-ggplot(MyData) + 
+    geom_bar(aes(VolunteerLevel, fill = Decision)) + 
+    ggtitle("Decision by Volunteer Level")+
+    coord_flip())
+
+```
+
+This is a good starting point for some more extended EDA. Note that the first steps were to load and clean the data. We can then confirm the tidy-ness of the data visually. Next it is time to INVESTIGATE the data -- EDA. We try to answer the question, how can we best leverage the data. If our research problem or goals was attempting to predict admissions based on these variables, we should assess the associations / correlations of these variables with our admissions variable (as we did in some instances above.) 
+
+This is a really good starting point for some more investigation, exploration and visualization that would be incorporated into a comprehensive EDA.
