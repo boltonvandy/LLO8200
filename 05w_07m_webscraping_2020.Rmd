@@ -1,0 +1,299 @@
+---
+title: "Web Scraping"
+author: "Will Doyle"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+## Introduction
+
+Many large web sites host a huge amount of information. This information is encoded and delivered on demand to the user within a web page, which is really just a markup language that a browser can understand. We can take this data and analyze it using R, via a variety of different means. Today we'll cover scraping web tables and interacting via Automated Programming Interfaces.
+
+## Ethics and Responsiblity
+
+Many of the tools we'll cover can be quite powerful ways to interact with data stored online and gather it for analysis. Because they're powerful, you need to be careful with them. In particular, try to request information in a way that will not burden the website owners. What constitutes a burden depends on the website. Google, Twitter, Facebook, all of the big websites have protections in place to guard against too many requests and have a huge amount of capacity for taking the requests they grant. Smaller websites may not have either. Always strive to be minimally intrusive: you're usually getting this data for free. 
+
+## Ways of getting data from the web
+
+We will cover several different ways you can get data from the web
+
+1. Directly downloading web pages via the `url()` command. 
+1. Scraping simple web tables via `read_html()` and `html_table()` command
+1. Interacting with Application Programming Interfaces (APIs) via R libraries that have been designed as "wrappers" for these interfaces, like the awesome `acs` library and the `tigris` library for geographic shapes. 
+1. Interacting with APIs directly, 
+
+
+## Libraries
+
+We will use multiple new libraries today. Among the ones you'll need: 
+
+* `rvest` for scraping websites
+
+* `tidycensus` for accessing American Community Survey data via the census API
+
+* `lubridate` for some date functions
+
+* `gridExtra` to combine graphs
+
+
+
+```{r}
+library(tidyverse)
+library(rvest)
+library(tigris)
+library(lubridate)
+library(gridExtra)
+library(tidycensus)
+```
+
+
+## API keys
+
+You will also need an API key. 
+
+* The Census API, available here: https://api.census.gov/data/key_signup.html 
+
+# Basics of interacting with information stored online
+
+R can understand a web connection via the `url` command. Once that connection is established, we can download whatever we'd like. 
+
+```{r}
+
+#Web connections: url
+# example
+r_home = url("http://www.r-project.org/")
+r_home
+
+# Pulling text from a website using readlines
+# url of Moby Dick (project Gutenberg)
+moby_url = url("http://www.gutenberg.org/files/2701/2701-h/2701-h.htm")
+# reading the content (first 1500 lines)
+moby_dick = readLines(moby_url, n = 1500)
+moby_dick[1205:1220]
+```
+
+# Scraping web tables
+
+When we talk about "scraping" a web table, we're talking about pulling a table that exists on a website and turning it into a usable data frame for analysis. Below, I take the table from  `http://en.wikipedia.org/wiki/Marathon_world_record_progression` for men's marathon times and plot the change in speed in m/s as a function of the date that the world record was set. 
+
+```{r}
+marathon_wiki = "https://en.wikipedia.org/wiki/Marathon_world_record_progression"
+
+# Get the page, pull the tables via html_table
+marathon <- read_html(marathon_wiki)%>%html_table(fill=TRUE)
+
+
+#Men's is the first table
+marathon<-tbl_df(data.frame(marathon[[1]]))
+
+#Convert time to seconds
+marathon<-marathon%>%
+  mutate(Time2=hms(as.character(Time)))%>%
+  mutate(Time2=period_to_seconds(Time2))
+
+#Marathons are 42,200 meters long
+marathon$speed<-(4.22e4)/marathon$Time2
+
+#Get dates in a usable format usin lubridate::mdy
+marathon$date<-mdy(marathon$Date)
+```
+
+
+## Progression of World Record Marathon Speed in Meters/Second
+```{r}
+
+marathon<-marathon%>%
+  mutate(Nationality=fct_reorder(.f=as_factor(Nationality),
+                                 .x=-speed,
+                                 .fun = max))
+
+g1<-ggplot(data=marathon,
+           aes(y=speed,x=date,
+               color=Nationality)
+           )  
+
+g1<-g1+geom_point()+
+           xlab("Date")+
+           ylab("Meters/Second")
+
+g1
+
+```
+
+_Quick Exercise_ Repeat the above analysis for women's world record progression.
+
+# Interacting via APIs
+
+Many websites have created Application Programming Interfaces, which allow the user to directly communicate with the website's underlying database without dealing with the intermediary web content. These have been expanding rapdily and are one of the most exciting areas of development in data access for data science. 
+
+Today, we'll be working with the American Community Survey from the census. Please go to: `http://www.census.gov/developers/` and click on "Get a Key" to get your census key. 
+
+*YOU NEED TO PAY ATTENTION TO TERMS OF USE WHEN USING APIS. DO NOT VIOLATE THESE.*
+
+Next, we'll turn to the American Community Survey. This includes a large number of tables (available here in excel file form:  https://www.census.gov/programs-surveys/acs/technical-documentation/summary-file-documentation.html) that cover many demographic and other characteristics of the population, down to the level of zip codes. We'll use the `tidycensus` package to get two tables for the counties we're interested in: levels of education and income. We'll turn these tables into two variables: the proportion of the population with incomes above $75,000, and the proportion of the population with at least a bachelor's degree. 
+
+The first step is to get the table from ACS. You can look up these tables by using the `load_variables` command, then searching through the results using`View()` and filter. 
+
+```{r}
+## Looking for variables
+
+v18 <- load_variables(2018, "acs5", cache = TRUE)
+
+## put everything in lowe case for ease of use
+
+v18<-v18%>%
+  mutate(name=str_to_lower(name))%>%
+  mutate(label=str_to_lower(label))%>%
+  mutate(concept=str_to_lower(concept))
+
+#View(v18)
+
+# b15003: education of pop over 25
+# b19001: household income over last 12 months
+```
+
+You can alos use search functions like `str_detect` to find what you're looking for
+
+```{r}
+
+#v18%>%
+#  filter(str_detect(concept,"attainment"))%>%
+#  filter(str_detect(label,"bachelor"))%>%View()
+
+```
+
+
+## Installing the API Key
+
+Below, I install my api Key. You'll need to add the key you received from the Census bureau below. 
+```{r}
+
+# Get your own key and save as my_acs_key.txt
+#my_acs_key<-readLines("my_acs_key.txt",warn = FALSE)
+acs_key<-"b27a265fe0dc7c49bd9281d6bc778637f10685e3"
+
+census_api_key(acs_key,install=TRUE,overwrite = TRUE)
+
+# OR just paste it here.
+#acs_key<-"<your_acs_key_here>"
+```
+
+
+## Organizing ACS data
+
+The trick with ACS data is organizing it in a way that's going to make sense. For us to get the proportion of indivudals with a college degree or more, we're going to need to take the numbers of people who are in each of the various age levels for education, and then divide by the total number of people in the county. Below I include code to calculate the proportion of individuals in each county who have at least a bachelor's degree. 
+
+Below, I submit a request using my key to get table B15003, which contains information on education levels. 
+```{r}
+
+## Educ Characteristics by County for Texas
+
+educ_vars<-get_acs(geography = "county",state="TX",
+                    table="B15003",geometry = TRUE)
+
+save(educ_vars,file="educ_vars.Rdata")
+## IF THIS DIDN"T WORK FOR SOME REASON YOU CAN LOAD THE FILE
+load("educ_vars.Rdata")
+
+## Spread, so that each level of education gets its own column
+educ_vars<-educ_vars%>%
+  select(GEOID,NAME,variable,estimate)%>%
+  spread(key=variable,value = estimate)
+
+## rename to be all lower case 
+names(educ_vars)<-str_to_lower(names(educ_vars))
+
+## Calculate prop with at least bachelor's for every county
+educ_vars<-educ_vars%>%
+  mutate(prop_bach=(b15003_022+
+                    b15003_023+
+                    b15003_024+
+                    b15003_025)/b15003_001)
+
+## simplify to just proportion
+educ_vars<-educ_vars%>%
+  select(geoid,name,prop_bach,geometry)
+
+```
+
+```{r}
+
+## Income by County for Texas
+
+income_vars<-get_acs(geography = "county",state="TX",
+                    table="B19001",
+                    geometry=TRUE)
+
+save(income_vars,file="income_vars.Rdata")
+## IF THIS DIDN"T WORK FOR SOME REASON YOU CAN LOAD THE FILE
+load("income_vars.Rdata")
+
+## Spread, so that each level of education gets its own column
+income_vars<-income_vars%>%
+  select(GEOID,NAME,variable,estimate)%>%
+  spread(key=variable,value = estimate)
+
+## rename to be all lower case 
+names(income_vars)<-str_to_lower(names(income_vars))
+
+## Calculate prop with at least bachelor's for every county
+income_vars<-income_vars%>%
+  mutate(prop_75p=(b19001_013+
+                    b19001_014+
+                    b19001_015+
+                    b19001_016+
+                    b19001_017)/b19001_001)                      
+
+## simplify to just proportion
+income_vars<-income_vars%>%
+  select(geoid,name,prop_75p,geometry)
+
+```
+
+```{r}
+educ_vars_2<-educ_vars%>%as_tibble()%>%select(geoid,name,prop_bach)
+
+income_vars_2<-income_vars%>%as_tibble()%>%select(geoid,name,prop_75p)
+
+educ_income<-left_join(educ_vars_2,income_vars_2,by=c("geoid","name"))
+
+```
+
+
+
+```{r}
+gg<-ggplot(educ_income,aes(x=prop_75p,y=prop_bach))
+gg<-gg+geom_point()
+gg<-gg+xlab("Proportion of Pop with a Bachelor's")+ylab("Proportion of Pop with Income over 75k")
+gg
+```
+
+
+```{r}
+gg1<-ggplot(educ_vars,aes(fill=prop_bach))
+gg1<-gg1+geom_sf(color=NA)
+gg1<-gg1+coord_sf(crs=26911)
+gg1<- gg1+ scale_fill_viridis_c(option = "viridis") 
+gg1<-gg1+ggtitle("Proportion of Pop with a BA")
+gg1
+```
+
+```{r}
+gg2<-ggplot(income_vars,aes(fill=prop_75p))
+gg2<-gg2+geom_sf(color=NA)
+gg2<-gg2+coord_sf(crs=26911)
+gg2<- gg2+ scale_fill_viridis_c(option = "viridis") 
+gg2<-gg2+ggtitle("Proportion of Pop with Income over 75k")
+gg2
+```
+
+```{r}
+gg_both<-grid.arrange(gg1,gg2)
+gg_both
+```
+
+
+
+
+This resource is amazingly helpful. It means that with a list of geographies you can get a huge amount of information about the area where the individual resides, including education, housing, income, medical care and other topics. 
