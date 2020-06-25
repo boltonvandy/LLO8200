@@ -68,7 +68,7 @@ g1<-ggplot(els_train, aes(x=byses1,y=bynels2m))+ #specify data and x and y
            geom_smooth(method=lm) #ask for lm line
 g1
 
-els_train<-els_train%>%add_predictions(mod1)%>%rename(pred1=pred) #predict using data in memory
+els_train<-els_train%>%add_predictions(mod1)%>%dplyr::rename(pred1=pred) #predict using data in memory
  
 ## RMSE
 rmse_1<-modelr::rmse(mod1,els_train);rmse_1
@@ -92,7 +92,7 @@ mod2<-lm(bynels2m~as.factor(bypared)+
 
 summary(mod2) 
 
-els_train<-els_train%>%add_predictions(mod2)%>%rename(pred2=pred)
+els_train<-els_train%>%add_predictions(mod2)%>%dplyr::rename(pred2=pred)
 
 rmse_2<-modelr::rmse(mod2,els_train); rmse_2
 
