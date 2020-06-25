@@ -1,0 +1,1626 @@
+---
+title: "Data Cleaning Example"
+author: "jb"
+date: "5/20/2020"
+always_allow_html: true
+output:
+  
+  pdf_document: default
+---
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+###############################
+##
+## Data Visualization 
+##
+## Example 1: The Data Science
+##             Life Cycle - 
+##             Visually for RECORD DATA
+##             with smaller dimensionality.
+##
+## Methods: cleaning, EDA, ML
+##
+## Gates
+##
+## Great reference:
+## http://r-statistics.co/Top50-Ggplot2-Visualizations-MasterList-R-Code.html
+##
+
+## ASK YOURSELF THIS QUESTION:
+## 
+## Can you answer a question with a vis?
+```
+
+# Intro
+
+Lets start this exercise with loading some student admissions data. This is a simple example where we will explore our data -- no other real goal.
+
+```{r}
+library(ggplot2)
+##
+## DATA SET
+##
+##
+##
+Myfile="SummerStudentAdmissions3_.csv"
+## USE YOUR OWN PATH AS NEEDED
+MyData <- read.csv(Myfile)
+```
+
+# Data Acquisition and Data Cleaning
+
+After loading the data, its a good idea to view it to confirm that the data loaded correctly. Try using commands "View", "str" or "head".
+
+```{r }
+############################################
+## Part 1: Cleaning the data
+##         using data vis - ggplot
+##
+##         EDA is Exploratory Data ANalysis
+##             Clean and explore...
+################################################
+
+## LOOK AT Each Variable.
+str(MyData)
+## Notice that there are 9 variables
+
+## Variable (also called features, attributes, columns) Name
+(MyVarNames<-names(MyData))
+MyVarNames[1]
+MyData[MyVarNames[1]]
+
+(NumColumns <-ncol(MyData))
+
+View(MyData)
+
+```
+
+Note that the "label" is the first column in the data frame. This is standard in R. The label is the class or classification of the data (often the dependent variable). Thus not considered part of the data, but rather the label. This variable should be of type factor, so lets confirm.
+
+```{r}
+##############################
+## Column 1: Decision
+###################################
+
+## THis is NOT part of the data!
+## It is the LABEL of the data.
+
+## Dataset labels should be of type factor
+str(MyData$Decision)
+
+## VISUALIZE to SEE what/where the errors are
+theme_set(theme_classic())
+MyBasePlot1 <- ggplot(MyData)
+(MyBasePlot1<-MyBasePlot1 + 
+    geom_bar(aes(MyData$Decision, fill = MyData$Decision)) + 
+    ggtitle("Decision Label"))
+
+```
+
+## Uncovering Issues
+
+OK - We have problems. Upon inspection of this one column ... 
+ - 1) We have a blank level - likely from a missing value. 
+ - 2) We have a label called banana - whichis wrong.??!?
+
+## Fixing Issues 
+
+Let's fix these. To fix factor data, first convert it to char. Lets remove "invalid rows", and confirm via inspection. 
+```{r}
+nrow(MyData)
+MyData$Decision <- as.character(MyData$Decision)
+
+## Keep only rows that are  "Admit", "Decline", or "Waitlist"
+
+MyData <- MyData[(MyData$Decision == "Admit" | 
+                    MyData$Decision == "Decline" | 
+                    MyData$Decision == "Waitlist"),]
+
+nrow(MyData)
+## Check it again
+
+(MyPlot1<-ggplot(MyData, aes(x=Decision, fill=Decision)) + 
+    geom_bar()+
+    geom_text(stat='count',aes(label=..count..),vjust=2)+
+    ggtitle("Student Dataset Labels"))
+```
+
+## More Cleaning ....
+
+Success! Now we can see (and show others) that theLabel in the dataset it clean and balanced. NOTE that we have color, a title, an x-axis label and labeled bars. We also have a legend.
+
+We are not done!! We need to change Decision back to a factor and inspect the other variables.
+```{r}
+(str(MyData$Decision))
+## This needs to be changed to type: factor
+MyData$Decision<-as.factor(MyData$Decision)
+## Check it
+table(MyData$Decision)
+str(MyData$Decision)
+## Good! We now have factor data with 3 levels.
+```
+
+Lets look at Gender next! This is a qualitative variable, lets visualize using a pie chart.
+
+```{r}
+#################################################
+## THe  next variable to look at is Gender
+## Like Decision, Gender is also qualitative.
+## Let's use a pie to look at it...
+#################################################
+
+str(MyData$Gender)
+NumRows=nrow(MyData)
+(TempTable <- table(MyData$Gender))
+(MyLabels <- paste(names(TempTable), ":", 
+                   round(TempTable/NumRows,2) ,sep=""))
+pie(TempTable, labels = MyLabels,
+    main="Pie Chart of Gender") 
+
+#install.packages("plotrix")
+library(plotrix) # Cool 3-d plot here!!
+pie3D(TempTable,labels=MyLabels,explode=0.3,
+      main="Pie Chart of Gender ")
+
+
+table(MyData$Gender)
+
+```
+
+Houston ... We have one problem! We have a blank or NA in the data ... but how to fix this? Lets use "is.na" 
+
+```{r}
+(sum(is.na(MyData$Gender)))  ## This confirms that it is not NA
+```
+Interesting ... our mystery value is not an "NA" ... what is it??
+
+```{r}
+## Let's look at str
+str(MyData$Gender)
+## This shows that we have blank and not NA....
+## FIX - change to char, correct, change back to factor
+## Keep track of what you are removing from the dataset
+```
+
+Its a "blank". Lets get rid of this row.
+
+```{r}
+ 
+nrow(MyData)
+MyData$Gender <- as.character(MyData$Gender)
+## Keep only rows that are Male or Female
+
+MyData <- MyData[(MyData$Gender == "Male" | 
+                    MyData$Gender == "Female") ,]
+nrow(MyData)
+## Turn back to factor
+MyData$Gender<- as.factor(MyData$Gender)
+str(MyData$Gender)
+table(MyData$Gender)
+
+```
+
+Lets recreate our Data Viz to confirm!
+
+```{r}
+
+(TempTable <- table(MyData$Gender))
+(MyLabels <- paste(names(TempTable), ":", 
+                   round(TempTable/NumRows,2) ,sep=""))
+pie(TempTable, labels = MyLabels,
+    main="Pie Chart of Gender") 
+```
+
+Lets inspect and clean the remaining variables. 
+
+```{r}
+############################################
+## Next variable is: DateSub
+#############################################
+#names(MyData)
+## Check format
+str(MyData$DateSub)  ## It is incorrect.
+## Check for NAs
+(sum(is.na(MyData$DateSub)))
+## Check the table
+table(MyData$DateSub)
+## The dates look ok - but the format is wrong and 
+## needs to be DATE
+(MyData$DateSub <- as.Date(MyData$DateSub, "%m/%d/%Y") )
+str(MyData$DateSub)
+
+## NOw that we have dates, can visualize them with 
+## a time series vis option. 
+
+ggplot(data = MyData, aes(x = DateSub, y = GPA))+
+  geom_line(color = "#00AFBB", size = 2)
+
+```
+GPA ... above 4.0 .... ?
+
+```{r}
+## We have a problem!
+## The GPA should never be above 4.0. 
+
+ggplot(MyData, aes(x = DateSub, y = GPA)) + 
+  geom_area(aes(color = Gender, fill = Gender), 
+            alpha = 0.5, position = position_dodge(0.8)) +
+  scale_color_manual(values = c("#00AFBB", "#E7B800")) +
+  scale_fill_manual(values = c("#00AFBB", "#E7B800"))
+
+## We can already SEE many things. 
+## We can see that Males applied a bit early and a bit later.
+## We can see that we have an error in at least one GPA
+## value that we will need to fix. 
+## We can see that Female and Male application times and GPAs
+## do not appear sig diff - but we can investigate this further.
+
+```
+#####################################################
+##
+##         Let's look at GPA and then dates with it
+####################################################
+
+```{r}
+str(MyData$GPA)  
+MyData$GPA<-as.numeric(MyData$GPA)
+table(MyData$GPA)
+
+## Are there NAs?
+(sum(is.na(MyData$GPA)))
+
+## Fix the missing GPA first
+## Find it
+(MissingGPA <- MyData[is.na(MyData$GPA),])
+## OK - its a Female/Admit. We can replace the missing GPA
+## with the median of all Female Admits.
+(Temp<-MyData[MyData$Decision=="Admit" & MyData$Gender=="Female",])
+## The median for Female Admits is:
+(MyMed<-median(Temp$GPA, na.rm=TRUE))
+## NOW - replace the missing GPA with this Median
+MyData$GPA[is.na(MyData$GPA)] <- MyMed
+## Check to assure the missing value  was updated...
+(sum(is.na(MyData$GPA)))
+
+table(MyData$GPA)
+
+```
+
+Well -- the dilema faced by data scientists everywhere ... what to do with missing data?!? Its common to either remove the row (as we have done previously); or we can try to replace the value with an estimate -- like the mean or median estimate. 
+
+```{r}
+
+library(plyr)
+
+## Create a table using the dataset
+## This table is BY Gender
+## The method is summarize
+## A new column is med and is the median for GPA
+(TEMPmeds <- ddply(MyData, .(Gender), summarize, 
+                   med = median(GPA)))
+
+```
+
+```{r}
+## Next, we have an incorrect value....let's SEE IT
+
+(MyV1 <- ggplot(MyData, aes(x=Gender, y=GPA, fill=Gender)) + 
+    geom_violin(trim=TRUE)+ geom_boxplot(width=0.1)+
+    geom_text(data = TEMPmeds, 
+              aes(x = Gender, y = med, label = med), 
+              size = 3, vjust = -1.5,hjust=-1)+
+    ggtitle("GPA and Gender")+
+    geom_jitter(shape=16, position=position_jitter(0.2)))
+
+
+
+## Now we can SEE the issue. There is at least one GPA
+## that is out of range. Let's fix this.
+## Let's replace the missing GPA by finding the median
+## for the ADMITS in that Gender group
+
+## FIND the row with GPA > 4
+(WrongGPAs <- MyData[(MyData$GPA<0 | MyData$GPA >4),])
+## 
+## We have Male Admit with a GPA of 6.
+
+## Fix it by using Male Admit GPA Median
+(Temp<-MyData[MyData$Decision=="Admit" & MyData$Gender=="Male",])
+## The median for Male Admits is:
+(MyMed<-median(Temp$GPA, na.rm=TRUE))
+## NOW - replace the missing GPA with this Median
+MyData$GPA[MyData$GPA>4] <- MyMed
+
+## NOW VISUALIZAE IT AGAIN:
+(TEMPmeds <- ddply(MyData, .(Gender), summarize, 
+                   med = round(median(GPA),2)))
+
+```
+Fix it!!
+
+```{r}
+
+(MyV1 <- ggplot(MyData, aes(x=Gender, y=GPA, fill=Gender)) + 
+    geom_violin(trim=TRUE)+ geom_boxplot(width=0.1)+
+    geom_text(data = TEMPmeds, 
+              aes(x = Gender, y = med, label = med), 
+              size = 4, vjust = -2.5,hjust=-1.8)+
+    ggtitle("GPA and Gender")+
+    geom_jitter(shape=16, position=position_jitter(0.2)))
+
+## That's better!
+
+table(MyData$GPA)
+## LOOKS GOOD!
+
+```
+
+State is next
+
+```{r}
+
+#############################################
+##
+##            Let's look at State next
+############################################
+#names(MyData)
+str(MyData$State)
+## Let's use a BAR to look
+BaseGraph <- ggplot(MyData)
+(MyG3<-BaseGraph + 
+    geom_bar(aes(State, fill = Gender), position="dodge")+
+    ggtitle("States and Gender"))
+
+## UGLY!!
+
+```
+
+This graph is not very aethestically pleasing ... lets clean it up using "theme"s.
+
+```{r}
+
+## Let's make this nicer so we can READ THE X AXIS
+(MyG3<-BaseGraph + 
+    geom_bar(aes(State, fill = Gender), position="dodge")+
+    ggtitle("States and Gender")+
+    theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5)))
+
+## MUCH BETTER!
+
+```
+
+Now we can SEE that we have problems :( First, we have poor balance. It might be needed to collect all the lower count states, such as ALabama, Mississippi, etc. into a group called OTHER. However, we will not do this here. If you want to see how - look at this other tutorial http://drgates.georgetown.domains/SummerClassificationRMarkdown.html
+
+Also - We have two Virginias (really!?!)  - we need to combine them:
+```{r}
+MyData$State[MyData$State == "virginia"] <- "Virginia"
+table(MyData$State)
+
+## Now - we need to remove the level of virginia
+MyData$State<-as.character(MyData$State)
+table(MyData$State)
+MyData$State<-as.factor(MyData$State)
+str(MyData$State)
+```
+
+and confirm
+
+```{r}
+## Check it
+(MyG4<-ggplot(MyData) + 
+    geom_bar(aes(State, fill = Gender), position="stack")+
+    ggtitle("States and Gender")+
+    theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5)))
+```
+
+Next: WorkExp
+
+```{r}
+
+## Even better!
+
+#########################################
+##
+## Now let's look at WorkExp
+#######################################
+#names(MyData)
+(sum(is.na(MyData$WorkExp)))
+str(MyData$WorkExp)
+
+## Let's look
+theme_set(theme_classic())
+
+# Histogram on a Continuous (Numeric) Variable
+(MyS3 <- ggplot(MyData,aes(x=WorkExp, y=GPA, color=Decision)) + 
+    geom_point() + 
+    scale_color_manual(values = c('blue',"red", "green")))
+
+## This helps in many ways. We can see that we have no outliers
+## or odd values. 
+```
+
+However, let's check it with a box plot as well. 
+
+```{r}
+
+(MyL1<-ggplot(MyData, aes(x=Decision, y=WorkExp))+
+    geom_boxplot()+
+    geom_jitter(position=position_jitter(.01), aes(color=Gender))+
+    ggtitle("Work Experience, Admissions, and Gender"))
+```
+
+This looks good and it also starts to tell us that people were not penalized or prefered based on work experience.
+
+Lets move on to TestScore and WritingScore.
+
+```{r}
+
+#####################################################
+##
+##          Let's look at TestScore and Writing Score
+##      
+#######################################################
+(sum(is.na(MyData$TestScore)))
+(sum(is.na(MyData$WritingScore)))
+
+str(MyData)
+
+## Box plots are great to look for odd values
+
+(MyL2<-ggplot(MyData, aes(x=Decision, y=TestScore))+
+    geom_boxplot()+
+    geom_jitter(position=position_jitter(.01), aes(color=Gender))+
+    ggtitle("Test Score, Admissions, and Gender"))
+
+```
+
+Interesting!! This mostly makes sense except for the 800 in the Admit group. However, it is not an outlier - it is just interesting.
+
+```{r}
+
+(MyL3<-ggplot(MyData, aes(x=Decision, y=WritingScore))+
+    geom_boxplot()+
+    geom_jitter(position=position_jitter(.01), aes(color=Gender))+
+    ggtitle("Writing Score, Admissions, and Gender"))
+
+
+
+```
+Hmmm - most of this looks OK, BUT, we have some very strangevalues for the Admit group.  Let's look at these:
+
+```{r}
+
+(Temp <- subset(MyData, Decision=="Admit", 
+                select=c(Decision,WritingScore)) )
+table(Temp$WritingScore)
+```
+
+OK - we can see that two score seem incorrect. The 1 and the 11, for an Admit, it not likely. Let's replace them with median
+
+```{r}
+
+(Temp3<-MyData[MyData$Decision=="Admit",])
+## The median for Admits is:
+(MyMed2<-median(Temp3$WritingScore, na.rm=TRUE))
+## NOW - replace the incorrect  with this Median
+MyData$WritingScore[MyData$WritingScore<85] <- MyMed2
+
+
+## check again
+(MyL4<-ggplot(MyData, aes(x=Decision, y=WritingScore))+
+    geom_boxplot()+
+    geom_jitter(position=position_jitter(.01), aes(color=Gender))+
+    ggtitle("Writing Score, Admissions, and Gender"))
+```
+
+MUCH BETTER! We can also look using density area plots...
+
+```{r}
+
+# Use semi-transparent fill
+(MyPlot4<-ggplot(MyData, aes(x=WritingScore, fill=Decision)) +
+    geom_area(stat ="bin", binwidth=2, alpha=0.5) +
+    theme_classic())
+
+## Here - using density - we can get a deeper look
+MyPlot5 <- ggplot(MyData, aes(WritingScore))
+MyPlot5 + geom_density(aes(fill=factor(Decision)), alpha=0.5) + 
+  labs(title="Density plot", 
+       subtitle="Decisions Based on Writing Scores")
+```
+
+# EDA
+
+Let investigate some of these variables for associations with our dependent variable -- EDA. Remember our goal is to leverage this data for prediction, decision-making, etc.
+
+Does it seem like WritingScore is really related to Admissions?
+
+```{r}
+
+## Let's run an ANOVA test to see
+MyANOVA_WS_Adm <- aov(WritingScore ~ Decision, data = MyData)
+# Summary of the analysis
+summary(MyANOVA_WS_Adm)  ## The test IS significant!
+plot(MyANOVA_WS_Adm, 1)
+## The above shows we can assume the homogeneity of variances.
+plot(MyANOVA_WS_Adm, 2) ## Close to normal
+
+```
+
+
+```{r}
+library("ggpubr")
+ggboxplot(MyData, x = "Decision", y = "WritingScore", 
+          color = "Decision", palette = c("#00AFBB", "#E7B800","green"),
+          ylab = "WritingScore", xlab = "Decision")
+
+
+## Let's add labels...
+
+(TheMean <- ddply(MyData, .(Decision), summarize, 
+                  mean2 = round(  mean(WritingScore) ,2 )))
+```
+
+
+
+```{r}
+## Another View...
+
+(MyV2 <- ggplot(MyData, aes(x=Decision, y=WritingScore, fill=Decision)) + 
+    geom_violin(trim=TRUE)+ geom_boxplot(width=0.1)+
+    geom_text(data = TheMean, 
+              aes(x = Decision, y = mean2, label = mean2), 
+              size = 3, vjust = -1.5,hjust=-1)+
+    ggtitle("Writing Score and Admissions Decision")+
+    geom_jitter(shape=16, position=position_jitter(0.2)))
+
+```
+
+And lastly ... VolunteerLevel
+
+```{r}
+
+###########################################
+##  The last variable is VolunteerLevel
+##  
+##############################################
+str(MyData$VolunteerLevel)
+## This should NOT be an int
+## COrrect it to factor
+MyData$VolunteerLevel <- as.factor(MyData$VolunteerLevel)
+table(MyData$VolunteerLevel)
+
+(MyG1<-ggplot(MyData) + 
+    geom_bar(aes(VolunteerLevel, fill = Decision)) + 
+    ggtitle("Decision by Volunteer Level")+
+    coord_flip())
+
+```
+
+This is a good starting point for some more extended EDA. Note that the first steps were to load and clean the data. We can then confirm the tidy-ness of the data visually. Next it is time to INVESTIGATE the data -- EDA. We try to answer the question, how can we best leverage the data. If our research problem or goals was attempting to predict admissions based on these variables, we should assess the associations / correlations of these variables with our admissions variable (as we did in some instances above.) 
+
+This is a really good starting point for some more investigation, exploration and visualization that would be incorporated into a comprehensive EDA.
+
+
+```{r}
+
+################################################
+
+##################################################
+## Machine Learning Methods and Visualization
+##
+## Clustering
+## Association Rule Mining
+##
+## Naive Bayes
+## Decision Trees
+## SVMs
+## 
+##################################################
+
+## PART 1: Unsupervised - Clustering
+##         k-means and hierarchical
+
+##-----------------------------------------------
+
+#################################
+#
+#           HUGELY IMPORTANT
+#
+####### FOr any model or method
+####### Make sure the data is
+####### in the right (and a smart)
+####### format. For example - for
+####### clustering - you must REMOVE
+####### the labels!
+#
+#####################################
+
+MyData
+
+## To cluster - remove the label
+## and remove any non-numeric variables
+
+MyClusterData<-MyData[,c(5,6,7,8)]
+head(MyClusterData)
+
+## Next - normalize!
+## This is especially important if you 
+## plan to use cosine sim as a distance
+## measure. 
+
+## MIN - MAX Function
+normalize <- function(x) {
+  return ((x - min(x)) / (max(x) - min(x)))
+}
+
+Norm_Data<-normalize(MyClusterData)
+head(Norm_Data)
+
+##OK! How we have a dataframe that this 
+## appropriate for clustering
+
+library(mclust)
+library(e1071)
+library(cluster)
+
+ClusFIT1 <- Mclust(Norm_Data,G=3)
+summary(ClusFIT1)
+plot(ClusFIT1, what = "classification")
+
+## Since we know that GPA and TestScore
+## are most related to decision - let's
+## LOOK at just those
+
+
+ClusFIT2 <- Mclust(Norm_Data[,c(1,3)],G=3)
+summary(ClusFIT2)
+plot(ClusFIT2, what = "classification")
+
+## Let's also look at this without 
+## normalized data
+
+ClusFIT3 <- Mclust(MyClusterData[,c(1,3)],G=3)
+summary(ClusFIT3)
+plot(ClusFIT3, what = "classification")
+
+## What does this show?
+##
+## Here, we SEE that we have clear clusters
+## for Admit, Waitlist, and Decline.
+
+################
+## Example 2
+C_Data<-MyClusterData[,c(3,1)]
+
+## Add row names for the cluster vis
+## Create "unique" but useful row names...
+
+rownames(C_Data) <- paste((as.character(MyClusterData[,1])),
+                    "_",
+                    rownames(C_Data), sep="")
+
+str(C_Data)
+
+kmeansFIT <- kmeans(C_Data,3)
+(kmeansFIT)
+## This shows the cluster centroid means
+kmeansFIT$centers
+plot(kmeansFIT$cluster)
+plot(kmeansFIT$centers)
+
+
+##########################################
+library(factoextra)
+fviz_cluster(list
+                  (data = C_Data, 
+                  cluster = kmeansFIT$cluster, 
+                  show.clust.cent = TRUE,
+                  labelsize = 1,
+                  main = "Cluster of Admissions Data",
+                  ellipse.type = "norm",
+                  outlier.shape = 10, 
+                  outlier.pointsize = 5,
+                  outlier.labelsize = 5,
+                    pointsize = .5,
+                    repel = TRUE
+                    ))
+             
+                  
+
+####################
+## Hierarchical clustering
+##############################################
+d_E <- dist(C_Data, method = "euclidean") # distance matrix
+
+fit1 <- hclust(d_E, method="ward")
+plot(fit1) # display dendogram
+groups <- cutree(fit1, k=3) # cut tree into 3 clusters
+# draw dendogram with red borders around the 3 clusters
+rect.hclust(fit1, k=3, border="red") 
+
+
+# Hierarchical clustering using Complete Linkage
+fit2 <- hclust(d_E, method = "complete" )
+
+# Plot the obtained dendrogram
+plot(fit2, cex = 0.6, hang = -1)
+
+fit3 <- agnes(C_Data, method = "ward")
+pltree(fit3, cex = 0.6, 
+       hang = -1, main = "Dendrogram of Data") 
+
+plot(fit1, cex = 0.6)
+rect.hclust(fit1, k = 3, border = 2:5)
+
+
+####################
+## Determine optimal number of clusters....
+##---------------------------------------------
+fviz_nbclust(MyClusterData, FUN = hcut, method = "wss")
+## We can see that we are right to use k = 3
+
+
+##################################################
+##
+##         Association Rule Mining
+##
+##################################################
+##
+## We first need to format the data - BUT - 
+## we need to know what we are trying to associate??
+
+head(MyData)
+
+## With ARM - the idea is to see if certain words
+## seems more associated with a greater probability.
+## We CANNOT do this with numeric data and so we must
+## discretize or remove all numeric or date data. 
+## We must end up with ONLY categorical data. 
+
+names(MyData)
+## Columns that are fine as-is are Decision, Gender, and
+## VolunteerLevel. All other columns must be discretized. 
+
+sort(MyData$DateSub)
+
+## New DF
+MyARM_Data<-data.frame()
+str(MyARM_Data)
+
+
+library(dplyr)
+library(lubridate)
+
+## First, convert all dates to a month
+(Temp4<-MyData %>% mutate(month = month(DateSub)))
+
+## Then, cut by month
+(Temp5 <- 
+  cut(Temp4$month, 
+      breaks=c(0, 1, 3, 11, 12), 
+      labels=c("Jan","Feb_Mar", "Nov","Dec")))
+
+## Next, convert the GPA
+
+(Temp6 <- 
+    cut(MyData$GPA, 
+        breaks=c(0, 3.1, 3.4, 3.59, 3.8, 4), 
+        labels=c("C_B-", "B","A-", "A", "A+")))
+
+(MyARM_Data<-cbind(as.data.frame(Temp6), as.data.frame(Temp5)))
+names(MyARM_Data)<-c("GPALevel","SubDate")
+MyARM_Data
+
+## Next, discretize the others...
+(Temp7 <- 
+    cut(MyData$TestScore, 
+        breaks=c(0, 700, 800, 900, 1000), 
+        labels=c("Low", "Medium","High", "VeryHigh")))
+
+
+(MyARM_Data<-cbind(as.data.frame(Temp7), MyARM_Data))
+names(MyARM_Data)<-c("TestScore", "GPALevel","SubDate")
+MyARM_Data
+
+## Let's include other categorical variables as well
+
+names(MyData)
+(MyARM_Data<-cbind(MyARM_Data, MyData$Decision, MyData$Gender, MyData$VolunteerLevel))
+MyARM_Data
+
+## OK! Now we have a dataset such that 
+## 
+## EACH ROW IS A TRANSACTION containing meaningful words/labels
+
+## Apply ARM
+library(arules)
+library(arulesViz)
+## IF  ERROR - use detach and then install the library
+## detach("package:arulesViz", unload=TRUE)
+## detach("package:arules", unload=TRUE)
+## then - run 
+## library(arules) 
+## library(arulesViz)
+##again
+
+MY_rules <- arules::apriori(MyARM_Data, 
+                 parameter = list(supp = 0.25, conf = 0.25,
+                                  target = "rules", minlen=2))
+
+inspect(MY_rules[1:10])
+
+SortedRules_by_conf <- sort(MY_rules, by="confidence", decreasing=TRUE)
+inspect(SortedRules_by_conf[1:10])
+
+SortedRules_by_sup <- sort(MY_rules, by="support", decreasing=TRUE)
+inspect(SortedRules_by_sup[1:10])
+
+####### Visualize the results
+## Uses arulesViz
+plot (SortedRules_by_conf,
+      method="graph",
+      engine='interactive',
+      shading="confidence") 
+
+plot (SortedRules_by_sup,
+      method="graph",
+      engine='interactive',
+      shading="confidence") 
+
+
+
+####################################################################
+##
+##               Supervised Methods: Decision Trees
+##
+#######################################################################
+
+library(e1071)
+library(caret)
+library(rpart)  ## For DT
+library(rattle)
+
+## Rattle: A free graphical interface for data science with R.
+## Version 5.1.0 Copyright (c) 2006-2017 Togaware Pty Ltd.
+## Type 'rattle()' to shake, rattle, and roll your data.
+
+library(rpart.plot)
+library(RColorBrewer)
+library(Cairo)
+
+## To perform supervised methods - we need to format the data
+## and we need to create Training and Testing sets from the dataset.
+
+head(MyData)
+## Make sure all types are correct and Decision is type: FACTOR
+## Decision should have 3 levels - Gender 2 levels - etc.
+str(MyData)  
+
+## double-check for NAs
+## Note that we already cleaned that data above - so will not repeat here
+(sum(is.na(MyData)))
+
+## -----------------------------
+## Create the Train and Test sets
+## ----------------------------------------
+
+## First - remove the date column from the dataset
+names(MyData)
+head(MyData2<-MyData[,-3])  ## -3 because this is the date column
+nrow(MyData2)
+set.seed(1234)
+(MySample <- sample(nrow(MyData2),nrow(MyData2)*.3))
+Testing_Set <- MyData2[MySample,]
+Training_Set <- MyData2[-MySample,]
+
+head(Testing_Set)
+head(Training_Set)
+
+## Check the label balance! If its not excellent - re-sample
+## If you set a seed each time, you can keep the one you like.
+## Testing Set
+TestG<-ggplot(Testing_Set) +
+  geom_bar(aes(x = Decision, y = stat(count), fill = Decision))+
+  theme(axis.text.x=element_text(angle=90,hjust=1))+
+  geom_text(stat='count',aes(Decision, label=..count..),vjust=2)
+
+TrainG<-ggplot(Training_Set) +
+  geom_bar(aes(x = Decision, y = stat(count), fill = Decision))+
+  theme(axis.text.x=element_text(angle=90,hjust=1))+
+  geom_text(stat='count',aes(Decision, label=..count..),vjust=2)
+
+
+#grid.arrange(TestG, TrainG, nrow = 2)
+
+##-------------------------------------------------------
+## HUGE !!!!!!!!!!!
+## 
+## Now- remove the labels from the Test Data and Keep them
+##--------------------------------------------------------
+head(Testing_Set)
+MyTestLabels<-Testing_Set[,1]
+head(MyTestLabels)
+Testing_Set_No_Labels<-Testing_Set[,-1]
+head(Testing_Set_No_Labels)
+
+
+###############################
+## Train and Test the Tree
+##
+## Visualize each tree as you
+## update.
+##############################################
+
+## Train the tree
+## Recall that trees are created randomly by R
+## Recall that there are an infinite number of 
+## possible trees. 
+##
+## By making updates to the data - such as selecting
+## specific columns, using feature generation,
+## or using discretization - different trees can be
+## created and visualized. 
+
+#################################################
+## 
+MyTree1 <- rpart(Decision ~ ., data = Training_Set, method="class")
+summary(MyTree1)
+
+## What was the most important variable?  (TestScore)
+## What was the second most important? (GPA)
+## Which was least important? (Gender)
+
+##--------------------Predictions...................
+## Check your model on the Test data
+## Notice you MUST use the Test set with NO LABELS
+
+MyModelPrediction= predict(MyTree1,Testing_Set_No_Labels, type="class")
+(MyResults <- data.frame(Predicted=MyModelPrediction,Actual=MyTestLabels))
+
+## Basic Comfusion Matrix
+(MyTable<-table(MyModelPrediction,MyTestLabels))
+str(MyTable)
+
+## Create a DF from the table to use in the heat map below...
+(MyTable_DF<-as.data.frame(MyTable))
+str(MyTable_DF)
+
+## Alternative - this offer sensitivity, specificity, accuracy, etc.
+#(MyConf_Mat <- confusionMatrix(MyModelPrediction,MyTestLabels))
+## To see the table:
+#MyConf_Mat$table
+#str(MyConf_Mat)
+
+## Nicer Confusion Matrix - but only works on 2x2
+## fourfoldplot(MyConf_Mat$table)
+
+## Using ggplot heatmap to build a confusion matrix
+ggplot(MyTable_DF, aes(x=MyModelPrediction, y=MyTestLabels, fill=Freq)) + 
+  geom_tile() +
+  scale_fill_gradient(low = "white", high = "steelblue")+
+  geom_text(aes(label=Freq))
+
+#################################
+##
+## Now - let's build some trees!
+##
+##########################################
+fancyRpartPlot(MyTree1)
+
+## Since TestScore is taking over - let's
+## built a tree without it...
+
+MyTree2 <- rpart(Decision ~ GPA+Gender, data = Training_Set, method="class")
+#summary(MyTree2)
+fancyRpartPlot(MyTree2)
+
+## How about WritingScore and VolunteerLevel?
+MyTree3 <- rpart(Decision ~ WritingScore + VolunteerLevel, 
+                 data = Training_Set, method="class")
+#summary(MyTree3)
+fancyRpartPlot(MyTree3)
+
+##Setting cp to a negative amount 
+## ensures that the tree will be fully grown.
+
+MyTree4 <- rpart(Decision ~ WritingScore +GPA, 
+                 data = Training_Set, method="class", cp=-1)
+#summary(MyTree4)
+fancyRpartPlot(MyTree4)
+
+######################### There are so many options to try!
+#-----------------------------------------
+########## Information: Top Attributes ###
+#-----------------------------------------
+library(FSelector)
+(My_FSelector <- FSelector::information.gain(Decision ~ .,data=Training_Set))
+
+                                             
+####################################################
+##
+##   Random Forest
+##
+###################################################
+##install.packages("randomForest")
+## Save and restart if you need to - SAVE FIRST
+library(randomForest)
+My_RF <- randomForest(Decision ~ .,data=Training_Set)
+
+RF_Pred= predict(My_RF,Testing_Set_No_Labels, type="class")
+
+## Basic Comfusion Matrix
+(My_RF_Table<-table(RF_Pred,MyTestLabels))
+
+## Create a DF from the table to use in the heat map below...
+(My_RF_Table_DF<-as.data.frame(My_RF_Table))
+
+## Using ggplot heatmap to build a confusion matrix
+ggplot(My_RF_Table_DF, 
+       aes(x=RF_Pred, y=MyTestLabels, fill=Freq)) + 
+  geom_tile() +
+  scale_fill_gradient(low = "white", high = "steelblue")+
+  geom_text(aes(label=Freq))
+
+
+## Other options
+My_RF$confusion
+My_RF$importance  ## Includes GINI
+##My_RF$forest - UGLY
+
+
+
+## Using party ###############
+library(party)
+
+## Important ##
+## Random Forest is RANDOM!
+## So you will get different answers each time - AND - 
+## if you it does not run right - just run it again
+##
+CF_RF<-cforest(Decision ~ ., 
+        data=Training_Set, 
+        controls=cforest_control(mtry=2, mincriterion=0))
+
+
+#CF_RF@data
+## Note - the "@" is used with objects like $ is used with DFs
+
+MyParty<-party:::prettytree(CF_RF@ensemble[[1]], 
+                            names(CF_RF@data@get("input"))) 
+MyNewTree <- new("BinaryTree")
+MyNewTree@tree <- MyParty
+MyNewTree@data <- CF_RF@data
+MyNewTree@responses <- CF_RF@responses
+MyNewTree
+#plot(MyNewTree) 
+
+
+### caret has a good RF model tool as well
+## "rf" is random forest
+## This is nice as it offers Accuracy and Kappa
+library(caret)
+RF_caret <- caret::train(Decision~ ., method="rf", data=Training_Set) 
+RF_caret
+
+############# Using ggplot and caret to see more---------
+# Save the variable importance values from our model 
+## object generated from caret.
+(ImportantVariables<-varImp(RF_caret, scale = FALSE))
+
+# Get the row names of the variable importance data
+rownames(ImportantVariables$importance)
+
+# Convert the variable importance data into a dataframe
+Import_DF <- data.frame(rownames(ImportantVariables$importance), 
+                        ImportantVariables$importance$Overall)
+head(Import_DF)
+
+# Relabel the data
+names(Import_DF)<-c('Platform', 'Importance')
+# Order the data from greatest importance to least important
+Import_DF <- transform(Import_DF, 
+                        Platform = reorder(Platform, Importance))
+
+(Import_DF)
+# Plot the data with ggplot.
+(MyPlot<-ggplot(data=Import_DF, aes(x=Platform, y=Importance)) +
+  geom_bar(stat = 'identity',colour = "lightgreen", 
+           fill = "lightblue") +
+  geom_text(aes(label=round(Importance,2), hjust=-.5))+
+  coord_flip())
+
+###################################################
+## SAving Plots
+###################################################
+
+## if you wish...
+## setwd("/Users/SomeName/Desktop/etc")
+
+## Options:
+#ggsave("HorizBar.jpeg")
+#ggsave(MyPlot, file="HorizBar.jpeg")
+ggsave(MyPlot, file="HorizBar.jpeg", width=4, height=8)
+
+
+######################################################
+##
+##               Naive Bayes
+##
+######################################################
+
+library(e1071)
+
+NBStudentclassfier <- naiveBayes(Decision ~.,
+                                 data=Training_Set, 
+                                 na.action = na.pass)
+
+NBStudentClassifier_Prediction <- predict(NBStudentclassfier, 
+                                          Testing_Set_No_Labels)
+
+## Basic Confusion Matrix
+table(NBStudentClassifier_Prediction,MyTestLabels)
+
+## This creates excellent output
+## It is a good idea to think about how to BUILD
+## a pretty figure with this output
+NBStudentclassfier
+
+## To the figure, you can also include other vis.
+
+## !!!!!!!! Different libraries offer different vis options
+## Above, I like the output that e1071 gives.
+## But- below - I will use Caret and the vis options...
+
+
+library(caret)
+library(klaR)
+
+## NB in caret
+caret_NB = train(Training_Set[,-1], ## data and NOT label
+                 Training_Set[,1],  ## the label ONLY
+                 'nb',
+                 trControl=trainControl(method='cv',number=100))
+
+caret_NB
+
+Predict <- predict(caret_NB,Testing_Set )
+Predict
+
+table(Predict,MyTestLabels)
+
+# Variable importance - this is a fun plot!
+VarImp_NB <- caret::varImp(caret_NB)
+plot(VarImp_NB)
+
+## 
+## Using klaR ----------------------
+
+klaR_NB <- NaiveBayes(Decision ~ ., data = Training_Set)
+plot(klaR_NB)
+
+
+
+##################################################
+##
+##          Support Vector Machines
+##
+########################################################
+##
+head(Training_Set)  ## Notice that column 1 is the label
+## Notice that columns 4, 5, 6, and 7 are numeric.
+head(Testing_Set_No_Labels)
+head(MyTestLabels)
+str(MyData)
+#names(MyData)
+## Create NEW DFs with just the numeric data
+SVM_Training_Data<-Training_Set[,c(1,4,6)]
+SVM_Test_Data_noLabel<-Testing_Set_No_Labels[,c(3,5)]  ## Why 3 and 5??
+## Because in this testset, that is where these columns are GPA and TestScore
+
+## Recall that Support Vector Machines ONLY WORK ON NUMERIC data
+## Consider our LABEL - this is "Decision"
+## This must be type factor - and it is - which is good.
+## Next, like all other goals in R - there are always
+## many different library options. 
+
+library(tidyverse)    # data manipulation and visualization
+library(kernlab)      # SVM methodology
+library(e1071)        # SVM methodology
+#install.packages("ISLR")
+library(ISLR)         # contains example data set "Khan"
+library(RColorBrewer) # customized coloring of plots
+
+## Let's start with a fun example
+## Let's use only two of our numeric variables and let's
+## SEE what the SVM linear predictor looks like
+
+### NOTES --------------------------------------
+## The "x" Points are the support vectors
+## The "o"points are the other points 
+## which do not affect the calculation of the linear sep
+##----------------------------------------------------
+
+##-------
+## plot the dataset
+##-----------------------------
+# plot the complete dataset
+ggplot(data= SVM_Training_Data, 
+       aes(x=SVM_Training_Data$GPA, 
+           y= SVM_Training_Data$TestScore)) + 
+  geom_point() +
+  geom_point(aes(color=Decision))+ 
+  scale_shape_manual(values=c(1,3)) + 
+  ggtitle("Scatter plot of the complete dataset")
+
+
+## from e1071
+SVM_fit1 <- svm(Decision~.,  data = SVM_Training_Data, kernel = "linear", scale = FALSE)
+SVM_fit1
+
+# Plot Results
+plot(SVM_fit1, SVM_Training_Data)
+
+## This worked really well! We can SEE the seperating lines. 
+## Notice that R used TWO (2) SVMS!! WHY??
+
+### Let's see a confusion matrix
+
+SVM_Pred1 <- predict(SVM_fit1, SVM_Test_Data_noLabel)
+
+## Basic Confusion Matrix
+table(SVM_Pred1,MyTestLabels)
+##---------------------------------------------
+## Pretty confusion matrix:
+##-------------------------------------------------------
+
+(MyResults2 <- data.frame(Predicted=SVM_Pred1,Actual=MyTestLabels))
+
+## Basic Comfusion Matrix
+(MyTable2<-table(SVM_Pred1,MyTestLabels))
+str(MyTable2)
+
+## Create a DF from the table to use in the heat map below...
+(MyTable_DF<-as.data.frame(MyTable2))
+str(MyTable_DF)
+
+## BE CAREFUL - you need the steps above to REFORMAT
+## So that you can create the heat map.
+
+## Using ggplot heatmap to build a confusion matrix
+ggplot(MyTable_DF, aes(x=SVM_Pred1, y=MyTestLabels, fill=Freq)) + 
+  geom_tile() +
+  scale_fill_gradient(low = "white", high = "steelblue")+
+  geom_text(aes(label=Freq))
+
+########################################
+## Tuning - finding the best cost C
+########################################
+# find optimal cost of misclassification
+BestCost <- tune(svm, Decision~., data = SVM_Training_Data, kernel = "linear",
+                 ranges = list(cost = c(0.001, 0.01, 0.1, 1, 5, 10, 100)))
+
+(BEST <- BestCost$best.model)
+
+
+###################################
+## Other kernels....include radial, polynomial, etc.
+##########################################################
+### IT IS VERY IMPORTANT TO NORMALIZE DATA 
+## WHEN USING AN SVM!! (WHy??)
+SVM_fit2 <- svm(Decision~.,  data = SVM_Training_Data, 
+                kernel = "radial", 
+                scale = TRUE, 
+                cost=10,
+                gamma=1)
+SVM_fit2
+
+plot(SVM_fit2, SVM_Training_Data)
+
+# -------------------------------------POLYNOMIAL ---------
+SVM_fit3 <- svm(Decision~.,  data = SVM_Training_Data, 
+                kernel = "polynomial", 
+                scale = TRUE, 
+                cost=10,
+                gamma=1)
+SVM_fit3
+
+# Plot Results
+plot(SVM_fit3, SVM_Training_Data)
+
+
+#############################################################
+## A look at other options for prediction and confusion matrices
+################################################################
+
+##################################################################
+### Running cross validation, and tuning with cost
+##  to create the best model.............
+##################################################################
+
+BestCost2 <- tune(svm, Decision~., data = SVM_Training_Data, kernel = "linear",
+                 ranges = list(cost = c(0.001, 0.01, 0.1, 1, 5, 10, 100)))
+
+summary(BestCost2)
+
+
+SVM_pred3 <- predict(BestCost2$best.model, SVM_Test_Data_noLabel)
+confusionMatrix(SVM_pred3, MyTestLabels)
+
+plot(BestCost2$best.model, data=SVM_Training_Data)
+
+##########################################################
+##             Using the kernlab library for SVMs
+########################################################
+
+#library(kernlab)
+SVM_fit4 <- ksvm(Decision ~ ., data = SVM_Training_Data, 
+                 kernel = "vanilladot", scaled=TRUE)
+#vanilladot is the Euclidean inner product kernel
+# option  kernel="rbfdot"
+
+
+## The plot function for ksvm only works for 2-class problems
+## Supports only BINARY classification. 
+## https://rdrr.io/cran/kernlab/man/ksvm.html
+## plot(SVM_fit4, data=SVM_Training_Data)
+
+####################################################
+## Using *train* to look at parameters
+####################################################
+(SVM5 <- train(Decision ~., SVM_Training_Data,
+                 method="svmPoly"))
+                 
+
+## Visualize Accuracy
+plot(SVM5)
+
+###################################################
+##
+##    Cross validation 
+##
+######################################################
+CrossVal<-trainControl(method="repeatedcv", repeats=5, classProbs = TRUE)
+## Include trying different costs
+MyCostGrid<-expand.grid(C=c(.01, .1, 1, 10, 100))
+
+(MySVM6<-train(Decision~.,
+               data = SVM_Training_Data,
+               method="svmLinear",
+                   preProc=c("center","scale"),
+                   tuneGrid=MyCostGrid,
+                   metric="Accuracy"))
+
+
+plot(MySVM6)
+
+###############################################################
+## SVM Tutorials 
+###############################################################
+## references for SVMs and math
+## https://www.eric-kim.net/eric-kim-net/posts/1/kernel_trick.html
+## http://datascienceandme.com/topics/RSupportVectorMachine.html
+## https://medium.com/nyu-a3sr-data-science-team/support-vector-machines-and-wine-cef59ad38b41
+## https://cran.r-project.org/web/packages/kernlab/kernlab.pdf
+## https://www.isical.ac.in/~arnabc/multi/lecsvm4.html
+## https://rpubs.com/ryankelly/svm
+## #################################################################
+
+
+################################################################
+##
+## Regression - Linear and non-linear
+##
+#################################################################
+
+## Linear regression is used to PREDICT a value
+## of a variable (called dependent or outcome or response)
+## The goal is to create a linear equation
+## that best estimates the values of the
+## response.
+
+## Example: Y = b +b1X + error
+## Multiple Linear Regression:  Y=b+b1X1+b2x2+...
+## The "b" values are the coefficients
+
+head(MyData)
+## Recall that regression is math
+## Therefore, it only works on numeric data.
+(MyX<-MyData[,5]) ## Let's make this 2D for now
+(MyY<-MyData[,7])
+
+scatter.smooth(x=MyX, y=MyY, main="GPA and TestScores")  # scatterplot
+
+## Checking for outliers and looking at the data
+par(mfrow=c(1, 2))  # subplot graph area in 2 columns
+boxplot(MyX, main="GPA", col="lightblue")
+
+## These are the points that are "far" from the median.
+## However, they are not outliers!
+(Stats<-boxplot.stats(MyX)$out)  
+## a vector of length 5, containing the extreme of the lower whisker
+#https://www.rdocumentation.org/packages/grDevices/versions/3.6.2/topics/boxplot.stats
+
+boxplot(MyY, main="TestScore", col="lightgreen")
+        
+########-------------- DENSITY ------------
+#library(e1071)
+par(mfrow=c(1, 2))  # 1 row and 2 columns
+plot(density(MyX), main="Density Plot: GPA", 
+     ylab="Frequency", 
+     sub=paste("Skewness:", round(e1071::skewness(MyX), 2)))  
+# density plot for GPA
+polygon(density(MyX), col="lightblue")
+
+plot(density(MyY), main="Density Plot: TestScores", 
+     ylab="Frequency", 
+     sub=paste("Skewness:", round(e1071::skewness(MyY), 2)))  
+# density plot for testscores
+polygon(density(MyY), col="lightgreen")
+
+############----------------correlation------------
+cor(MyX, MyY)  ## Strong Positive!
+
+##---------------------------------------------------
+##############-----------Build the LINEAR MODEL------
+##-------------------------------------------------------
+
+MyLinearModel1 <- lm(MyX ~ MyY)  
+# build linear regression model on full data
+## Can also do this:  MyLinearModel1 <- lm(Var1 ~ Var2, data = yourdata) 
+print(MyLinearModel1)
+## What does this mean??
+## It means this:
+##  Y = 1.11925 + .00274X, where Y is TestScore and X is GPA.
+summary(MyLinearModel1)
+## Pr(>|t|) is the sig of the t-test and it is VERY sig in this case
+## YES! We CAN predict TestScore with GPA. 
+## Read more:
+## http://r-statistics.co/Linear-Regression.html
+
+############-----------------------------------
+##
+##   Creating PREDICTIVE linear models
+##
+###########------------------------------------------
+## Here - we need testing and training data.
+## 
+(MySample<-sample(1:nrow(MyData), 0.8*nrow(MyData)))
+RegrTEST<-MyData[-MySample,c(5,7)] 
+head(RegrTEST)
+## This gives 20% test data for GPA and TestScore
+RegrTRAIN<-MyData[MySample,c(5,7)] 
+head(RegrTRAIN)
+
+# Build MODEL on training data ...
+(Linear_Pred_Model <- lm(GPA ~ TestScore, data=RegrTRAIN) ) 
+## This is the MODEL that was created:
+## GPA = 1.288393 + .002558*TestScore
+
+(Linear_Pred <- predict(Linear_Pred_Model, RegrTEST)  )
+## These are the predictions for GPA per the TestScore for each row.
+
+## Build a data frame to compare the true values
+## to the predicted values....
+True_ValuesDF <- data.frame(cbind(actual=RegrTEST$GPA, 
+                                  predicted=Linear_Pred))  
+
+correlation_accuracy <- cor(True_ValuesDF)  
+head(True_ValuesDF)
+
+## Min-Max Accuracy of the prediction 
+(min_max_accuracy <- 
+  mean(apply(True_ValuesDF, 1, min) / apply(True_ValuesDF, 1, max))  )
+## Impressive!! 96.5% accuracy. 
+
+################-------------MultiLinear Regression        ---
+###############-----------------------------------------------
+
+# Multiple Linear Regression Example
+#head(MyData)
+ML_Reg <- lm(GPA ~ TestScore + WorkExp + TestScore, data=MyData)
+summary(ML_Reg)
+## What is the result??
+## It is this:
+## GPA = 1.125 + .0027*TestScore  - .0030*WorkExp
+## P value is nearly 0 at .00000682 - very sig!
+
+# Other Options.......
+coefficients(ML_Reg) # model coefficients - we see these above.
+confint(ML_Reg, level=0.95) # Confidence Intervals for model parameters
+fitted(ML_Reg) # predicted values for each row GPA
+residuals(ML_Reg) # residuals
+anova(ML_Reg) # anova table - the F-test in this case is significant!
+vcov(ML_Reg) # covariance matrix for model parameters
+
+# Plot the Model Diagnostics
+layout(matrix(c(1,2,3,4),2,2)) # 4 graphs and 2X 2 graph grid
+plot(ML_Reg, col=MyData$Decision)
+
+## Read More:
+## https://www.statmethods.net/stats/regression.html
+
+###################################################################
+##
+## Neural Networks and Deep Learning
+##
+###################################################################
+
+## NNs learn by example like all other supervised learning ML
+## methods. ANN stands for artificial neural network.
+## NNs try to mimic human brain neurons.
+## NNs are non-linear, parallel, adaptive (learning), and complex
+## NN "adapt" by changing the weights of internal nodes to better
+## meet the needs of the problem. 
+## Interestingly - NNs are used to sole problems that are normally
+## easier for humans  - but harder for machines....like knowing
+## if someone is sad or finding a sunset in a picture.
+
+## HOW DOES IT WORK
+##
+## A NN can have a vector of input (many inputs).
+## It can weight each input in the vector and can update the 
+## weights. Each input vector (or data row) is LABELED and so have
+## a desired output goal. Like all supervised learning methods, we
+## use LABELED TRAINING data to *train* the NN. Then, we use a NON-LABELED
+## TEST set to see how well our NN can determine the correct label.
+## This idea is the same for all supervised learning methods.
+##
+## THE FUNCTION OF NN
+##
+## Y = sum(weight(i)*input(i))+bias
+##
+## Suppose you have a numeric dataset with variables AGE, WEIGHT, HEIGHT
+## Suppose a row (vector) in the dataset is [29, 120, 60].
+## Supose we know the LABEL and it is "Female". 
+## Suppose a different row in the dataset is [34, 210, 75] and
+## the label is "Male". 
+##
+## Then, Y is the label - either Male or Female  - but because Y
+## will be a number, we will use a THRESHOLD to determine which numbers
+## are classified as "Male" and which as "Female". 
+## 
+## A possible example (these are made up numbers) might be:
+## Y  = (29*.10 + 120*.43 + 60*.67)  = 94.7     <120 so Female
+## Y  = (34*.10 + 210*.43 + 75*.67)  = 143.95   >120 so Male
+##
+## What?? WHy 120?? 
+## Answer:
+## This is just an example. The 120 is a threshold. Normally, a sigmoid
+## is used to create a threshold.
+##
+
+## FIRST (and ignore the warnings)
+#install.packages("caret")
+#install.packages("nnet")
+library(caret)
+library(nnet)
+
+## Let's use the SVM datasets because NN also need to be numeric.
+
+(MyTestLabels)
+head(SVM_Training_Data)
+(SVM_Test_Data_noLabel)
+
+ggplot(SVM_Training_Data, aes(x = GPA, y = TestScore, colour = Decision)) +
+  geom_point(size=3) +
+  ggtitle("Admissions")
+
+## Train the NN
+## https://www.rdocumentation.org/packages/nnet/versions/7.3-12/topics/nnet
+MyNN <- nnet(Decision ~ GPA+TestScore, data=SVM_Training_Data,
+             size=10, ## 10 nodes in hidden layers
+             decay=1.0e-2, ## Changing this can affect results
+             maxit=100, 
+             linout=TRUE)
+
+MyNN  # 2-2-3: 2 inputs (GPA and TestScore), 2 hidden layers, and 3 outputs
+
+(Prediction<-predict(MyNN, SVM_Test_Data_noLabel, type="class"))
+
+table(Prediction, MyTestLabels)
+```
