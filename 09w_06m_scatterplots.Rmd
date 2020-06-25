@@ -136,7 +136,7 @@ mod_2<-lm(bynels2m~
 Now let's take a look at this model plotted against the actual data. I'm going to use the `alpha` setting to make the dots more transparent. I'm also going to make the dots smaller via the size specification. 
 ```{r}
 
-els<-els%>%add_predictions(mod_2)%>%rename(pred_mod_2=pred)
+els<-els%>%add_predictions(mod_2)%>%dplyr::rename(pred_mod_2=pred)
 
 g3<-ggplot(els,aes(x=byses1,y=bynels2m))
 g3<-g3+geom_point(alpha=.2,size=.25)
