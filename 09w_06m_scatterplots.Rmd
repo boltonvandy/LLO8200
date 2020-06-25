@@ -61,7 +61,7 @@ els_sum<-els%>%
   mutate(ses_rank=percent_rank(byses1)*100)%>%
   mutate(ses_rank_r=round(ses_rank))%>%
   group_by(ses_rank_r)%>%
-  summarize(test_mean=mean(bynels2m,na.omit=TRUE))
+  mutate(test_mean=mean(bynels2m,na.omit=TRUE))
 
 g1a<-ggplot(els_sum,aes(x=ses_rank_r,y=test_mean))
 
