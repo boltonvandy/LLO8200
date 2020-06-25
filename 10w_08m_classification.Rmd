@@ -53,7 +53,7 @@ We'll start by generating some cross tabs and some quick plots, showing the prob
 #Cross Tabs
 
 za_train%>%
-  count(got_pizza)%>% # Count numbers getting pizza
+  dplyr::count(got_pizza)%>% # Count numbers getting pizza
   mutate(p=prop.table(n))%>% #mutate for proportions using prop.table
   kable(format="markdown") # output to table
 
@@ -91,7 +91,7 @@ But, we can also use conditional means to get proportions for very particular se
 ```{r}
 za_sum<-za_train%>%
   group_by(grateful,student,poor)%>%
-  summarize(mean_pizza=mean(got_pizza))%>%
+  mutate(mean_pizza=mean(got_pizza))%>%
   arrange(-mean_pizza)
 
 za_sum%>%kable()
@@ -129,7 +129,7 @@ We're going to do something a bit different with the predictions from this model
 #Predictions
 za_train<-za_train%>%
   add_predictions(lm_mod)%>% ## Add in predictions from the model
-  rename(pred_lm=pred)%>% ## rename to be predictions from ols (lm)
+  dplyr::rename(pred_lm=pred)%>% ## rename to be predictions from ols (lm)
   mutate(pred_lm_out=ifelse(pred_lm>=.35,1,0))
 ```
 
