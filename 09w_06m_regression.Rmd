@@ -30,7 +30,7 @@ library(modelr)
 The ELS dataset is called `els_train`. I'll explain the "train" part in a bit-- it refers to a "training" dataset.
 
 ```{r}
-load("els_train.RData")
+load("els_train.Rdata")
 ```
 
 ## Bivariate regression
