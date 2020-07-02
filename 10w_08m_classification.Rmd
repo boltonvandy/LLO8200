@@ -80,7 +80,7 @@ Crosstabs using binary data are equivalent to generating conditional means, as s
 ```{r condtional_means}
 #Predictions using conditional means
 
-za_train%>%group_by(grateful)%>%summarize(mean(got_pizza))
+za_train%>%group_by(grateful)%>%dplyr::summarize(mean(got_pizza))
 
 ```
 
@@ -91,7 +91,7 @@ But, we can also use conditional means to get proportions for very particular se
 ```{r}
 za_sum<-za_train%>%
   group_by(grateful,student,poor)%>%
-  mutate(mean_pizza=mean(got_pizza))%>%
+  dplyr::summarize(mean_pizza=mean(got_pizza))%>%
   arrange(-mean_pizza)
 
 za_sum%>%kable()
