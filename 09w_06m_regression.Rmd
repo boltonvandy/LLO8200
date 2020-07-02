@@ -108,7 +108,7 @@ The `byses` variable is a little hard to interpret. It's on a scale from -2 to 2
 
 ```{r}
 els_train<-els_train%>%mutate(byses_p=percent_rank(byses1)*100)
-els_train%>%summarize(mean(byses_p,na.rm=TRUE))
+els_train%>%dplyr::summarize(mean(byses_p,na.rm=TRUE))
 ```
 
 ```{r}
