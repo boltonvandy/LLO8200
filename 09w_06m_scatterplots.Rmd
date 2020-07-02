@@ -17,7 +17,7 @@ library(tidyverse)
 library(forcats)
 library(modelr)
 
-load("els.RData")
+load("els.Rdata")
 
 ```
 
