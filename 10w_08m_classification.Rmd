@@ -23,7 +23,7 @@ library(forcats)
 ```
 
 ```{r data}
-load("za_train.Rdata")
+load("za_train.RData")
 ```
 
  Our goal is to create a classifier that will accurately classify people in a testing dataset as to whether they will receive a pizza or not, based on the content of their post. This is a VERY common task in data science-- taking user supplied content and using it to accurately classify that user, typically as someone who will buy a product or service.   
