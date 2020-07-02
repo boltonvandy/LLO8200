@@ -63,7 +63,7 @@ To format the data for barcharts, we make use of the concept of conditional mean
 ```{r}
 za_sum<-za%>%
   group_by(poor,student)%>%
-  summarize(prob_pizza=mean(got_pizza,na.rm=TRUE))
+  dplyr::summarize(prob_pizza=mean(got_pizza,na.rm=TRUE))
 ```
 
 Then we can plot this using our familiar ggplot commands:
@@ -94,7 +94,7 @@ Then we'll create a summary dataset that shows the probabilitie of the outcome a
 
 ```{R}
 za_sum<-za%>%group_by(score_quintile,karma_quintile)%>%
-  summarize(prob_pizza=mean(got_pizza,na.rm=TRUE))%>%
+  dplyr::summarize(prob_pizza=mean(got_pizza,na.rm=TRUE))%>%
   arrange(-prob_pizza)
 ```
 
