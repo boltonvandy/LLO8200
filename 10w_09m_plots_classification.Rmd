@@ -178,7 +178,7 @@ hypo_data<-data_grid(za,
 ```{r}
 gg<-ggplot(hypo_data,
            aes(x=raop_posts,y=pred,color=student))
-gg<-gg+geom_line()
+gg<-gg+geom_line() 
 gg<-gg+xlab("RAOP Posts")+ylab("Predicted Probability of Pizza")
 gg
 ```
