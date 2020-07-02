@@ -63,7 +63,7 @@ To format the data for barcharts, we make use of the concept of conditional mean
 ```{r}
 za_sum<-za%>%
   group_by(poor,student)%>%
-  dplyr::summarize(prob_pizza=mean(got_pizza,na.rm=TRUE))
+  dplyr::summarize(prob_pizza=mean(got_pizza,na.rm=TRUE))  
 ```
 
 Then we can plot this using our familiar ggplot commands:
